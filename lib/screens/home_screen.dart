@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:secure_messenger/services/chat_service.dart';
 import '../services/firebase_auth.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'chat_screen.dart';
+
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
+    final AuthService authService = AuthService();
+    final ChatService chatService = ChatService();
+    final FirebaseAuth auth = FirebaseAuth.instance;
 
     return Scaffold(
       appBar: AppBar(
@@ -15,28 +21,52 @@ class HomeScreen extends StatelessWidget {
           // Väljalogimise nupp
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await authService.signOut();
-            },
-            tooltip: 'Log out',
+            onPressed: () => authService.signOut(),
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: 3, // Esialgu teeme 3 ajutist vestlust näidiseks
-        itemBuilder: (context, index) {
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.blueGrey,
-              child: Text('${index + 1}'),
-            ),
-            title: Text('User ${index + 1}'),
-            subtitle: const Text('This is a secure private message...'),
-            trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-            onTap: () {
-              // Siit hakkame tulevikus avama konkreetset vestlusakent!
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Open the chat with User ${index + 1}')),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: chatService.getUsersStream(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('Something went wrong while loading users.'));
+          }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // Filtreerime nimekirjast välja iseenda, et me endaga rääkida ei saaks
+          final users = snapshot.data!
+              .where((user) => user['email'] != auth.currentUser?.email)
+              .toList();
+
+          if (users.isEmpty) {
+            return const Center(child: Text('No other users found.'));
+          }
+
+          return ListView.builder(
+            itemCount: users.length,
+            itemBuilder: (context, index) {
+              final userData = users[index];
+              return ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Colors.blue,
+                  child: Icon(Icons.person, color: Colors.white),
+                ),
+                title: Text(userData['email']),
+                trailing: const Icon(Icons.chat_bubble_outline, color: Colors.blue),
+                onTap: () {
+                  // Viime kasutaja otse spetsiaalsesse vestlusaknasse
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        receiverEmail: userData['email'],
+                        receiverId: userData['uid'],
+                      ),
+                    ),
+                  );
+                },
               );
             },
           );

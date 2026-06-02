@@ -39,6 +39,7 @@ dependencies:
   local_auth: ^3.0.1
   local_auth_android: ^2.0.8
   local_auth_darwin: ^2.0.3
+  cloud_firestore: ^6.5.0
 
 dev_dependencies:
   flutter_test:

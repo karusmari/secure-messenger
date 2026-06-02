@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // Listen to the user state (whether they are logged in or out)
   Stream<User?> get user {
@@ -16,6 +18,12 @@ class AuthService {
         email: email, 
         password: password,
       );
+      if (result.user != null) {
+        await _db.collection('users').doc(result.user!.uid).set({
+          'email': email,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
       return result;
     } on FirebaseAuthException catch (e) {
       debugPrint('Registration error: ${e.message}');
