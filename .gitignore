@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase configuration files - these contain sensitive information and should not be committed to version control
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+android/app/google-services.json
+lib/firebase_options.dart
