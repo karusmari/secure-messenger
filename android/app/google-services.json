@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1008557235823",
+    "project_id": "mk-glab-messenger",
+    "storage_bucket": "mk-glab-messenger.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1008557235823:android:20577d56390b80f8aaf79a",
+        "android_client_info": {
+          "package_name": "com.example.secure_messenger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDO5YSqlXPo8M8i-3xMPlzZnyPMTvgfd3c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

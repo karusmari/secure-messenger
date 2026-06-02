@@ -1,17 +1,19 @@
-# secure_messenger
+Faas 1: Vundament (Firebase + Auth)
+Seo äpp Firebase'iga ära (nagu eelmises vastuses vaatasime flutterfire configure).
 
-A new Flutter project.
+Tee valmis tavaline emaili/parooliga sisselogimine ja registreerimine.
 
-## Getting Started
+Lisa sinna otsa biomeetria kontroll (local_auth).
 
-This project is a starting point for a Flutter application.
+Faas 2: Kasutajad ja kontaktid
+Kasutajaprofiili loomine ja pildi üleslaadimine (firebase_storage + image_picker).
 
-A few resources to get you started if this is your first Flutter project:
+Otsinguriba, kus saab andmebaasist teisi kasutajaid otsida.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Faas 3: Tavaline chat (Tekst + Meedia)
+Sõnumite saatmine Firestore'i (andmebaasi struktuur: chats -> messages).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Piltide ja videote saatmine (fail laetakse Firebase Storage'isse, link pannakse sõnumi sisse).
+
+Faas 4: Turvalisus (Secret Chat)
+Lisa krüpteerimise loogika. Kui valitakse "Secret Chat", siis enne Firestore'i saatmist jooksutad teksti läbi encrypt paki.
