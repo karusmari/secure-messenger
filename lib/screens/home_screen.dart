@@ -275,7 +275,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ChatScreen(
-                              receiverEmail: userData['email'],
+                              receiverEmail: (userData['email'] != null && userData['username'].toString().isNotEmpty) 
+                                  ? userData['username'] 
+                                  : userData['email'],
                               receiverId: userData['uid'],
                             ),
                           ),

@@ -165,8 +165,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
+                // nullime lugemata sõnumite arvu, kui kasutaja avab vestluse
+                _chatService.clearUnreadCount(widget.receiverId);
+
                 // Kuvame sõnumid nimekirjana
                 return ListView(
+                  reverse:true, // Et uusimad sõnumid oleksid all ja vanemad üles
                   padding: const EdgeInsets.all(16),
                   children: snapshot.data!.docs.map((doc) {
                     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -367,6 +371,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _chatService.clearUnreadCount(widget.receiverId); // Ja nullin lugemata sõnumite arvu, kui lahkun vestlusest
     _chatService.setTypingStatus(widget.receiverId, false); // Kui lahkun vestlusest, lülitan trükkimise välja
     _messageController.dispose();
     super.dispose();
