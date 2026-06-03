@@ -23,6 +23,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Secure Messenger',
       theme: ThemeData.dark(), 
+      debugShowCheckedModeBanner: false,
       home: const AuthWrapper(),
     );
   }
