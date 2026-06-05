@@ -24,25 +24,62 @@ class UserTile extends StatelessWidget {
         ? peerUsername
         : (userData['email'] ?? 'Unknown User').toString();
 
+    // 🌟 EEMALDATUD KONTEINER: Tagastame otse ListTile, et taust oleks puhas äpi taust
     return ListTile(
+      dense: false, // Messengeri stiilis suurema pildi jaoks sobib false paremini
+      
+      // Määrame mugava paddingu (vasakult/paremalt sissepoole, vertikaalselt mõnus hingamisruum)
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+
+      // 👥 PROFIILIPILT (Nüüd suurem ja esinduslikum, täiesti ümmargune)
       leading: CircleAvatar(
-        backgroundColor: Colors.blue[700],
+        radius: 26, // Tõstsime raadiust, pilt on nüüd suurem ja ilusam
+        backgroundColor: const Color(0xFF3C3D37), // Kasutame taustaks paleti halli
         child: peerImage != null && peerImage.isNotEmpty
             ? ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(26), // Täpselt sama mis radius
                 child: Image.memory(
                   base64Decode(peerImage),
-                  width: 40,
-                  height: 40,
+                  width: 52,  // 26 * 2
+                  height: 52, // 26 * 2
                   fit: BoxFit.cover,
                 ),
               )
             : Text(
                 displayLetter,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary, // ECDFCC toon
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
       ),
-      title: Text(displayTitle),
+
+      // 📝 KASUTAJA NIMI
+      title: Text(
+        displayTitle,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 16, // Veidi suurem ja loetavam puhtal taustal
+          letterSpacing: 0.2,
+        ),
+      ),
+
+      // 📧 KASUTAJA EMAIL
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 2.0),
+        child: Text(
+          peerEmail,
+          style: const TextStyle(
+            color: Color(0xFF697565), // Sinu stiilne rohekas-hall
+            fontSize: 13,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+
+      // 🔴 LUGEMATA SÕNUMID
       trailing: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
@@ -57,21 +94,28 @@ class UserTile extends StatelessWidget {
 
             if (count > 0) {
               return Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECDFCC), // Kasutame kreemikat esiletõstuks (või jäta punaseks)
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   count.toString(),
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Color(0xFF181C14), // Tume tekst kreemikal taustal
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               );
             }
           }
-          return const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey);
+          // Puhas ja minimalistlik pisike nooleke paremas ääres
+          return const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF3C3D37));
         },
       ),
+
+      // 🔓 VAJUTUSE LOOGIKA
       onTap: () {
         Navigator.push(
           context,

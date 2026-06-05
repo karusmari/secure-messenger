@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:secure_messenger/services/chat_service.dart';
 import '../services/firebase_auth.dart'; 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'profile_screen.dart';
-import '../widgets/qr_scanner.dart'; 
+import '../widgets/qr_scan_button.dart';   
 import '../widgets/user_tile.dart';         
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,78 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
-  // 🛠️ QR SKÄNNIMISE TULEMUSE TÖÖTLEMINE
-  Future<void> _handleQrScan() async {
-    // Avame skänneri akna ja ootame sealt tulemust (emaili)
-    final String? scannedEmail = await Navigator.push<String>(
-      context,
-      MaterialPageRoute(builder: (context) => const QrScannerWidget()),
-    );
-
-    if (scannedEmail == null || scannedEmail.isEmpty) return;
-
-    if (scannedEmail.toLowerCase() == auth.currentUser?.email?.toLowerCase()) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You scanned your own QR code!")),
-      );
-      return;
-    }
-
-    // Näitame laadimist
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final userQuery = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: scannedEmail.toLowerCase())
-          .get();
-
-      if (mounted) Navigator.pop(context); // Sulgeme laadimise
-
-      if (userQuery.docs.isNotEmpty) {
-        final String targetUid = userQuery.docs.first.id;
-        final String currentUid = auth.currentUser!.uid;
-
-        // Lisame vestluse mõlemale poolele
-        await FirebaseFirestore.instance.collection('users').doc(currentUid).update({
-          'chatsWith': FieldValue.arrayUnion([targetUid])
-        });
-        await FirebaseFirestore.instance.collection('users').doc(targetUid).update({
-          'chatsWith': FieldValue.arrayUnion([currentUid])
-        });
-
-        setState(() {
-          _searchController.text = "";
-          _searchQuery = "";
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Chat with $scannedEmail added!')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No user found with email: $scannedEmail')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Sulgeme laadimise kui tekkis viga
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error occurred: $e')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,6 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Secure Chats'),
         elevation: 0,
         actions: [
+          // 🌟 UUS VIDIN: Teeb kogu skännimise ja kasutaja lisamise töö ise ära
+          QrScanButton(),
+          
           // Oma profiilipilt
           StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance.collection('users').doc(auth.currentUser!.uid).snapshots(),
@@ -127,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: base64Image != null && base64Image.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(18),
-                            child: Image.memory(base64Decode(base64Image!), width: 36, height: 36, fit: BoxFit.cover),
+                            child: Image.memory(base64Decode(base64Image), width: 36, height: 36, fit: BoxFit.cover),
                           )
                         : Text(userLetter, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
@@ -145,22 +76,21 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // Otsingukast
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
             child: TextField(
               controller: _searchController,
               onChanged: (value) => setState(() => _searchQuery = value.trim().toLowerCase()),
               decoration: InputDecoration(
-                hintText: 'Search contact by email or username...',
-                hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                prefixIcon: Icon(Icons.search, color: Colors.grey[500], size: 18),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
-                  onPressed: _handleQrScan, // 👈 PALJU PUHTAM KUTSE
-                ),
+                hintText: 'Search contact...',
+                hintStyle: const TextStyle(color: Color(0xFF697565), fontSize: 14),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF697565), size: 20),
                 filled: true,
-                fillColor: Colors.grey[900],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                fillColor: Theme.of(context).colorScheme.surface, 
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ), 
           ),
@@ -204,7 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 return ListView.builder(
                   itemCount: users.length,
                   itemBuilder: (context, index) {
-                    // 👈 KOGU PIKK LISTTILE ON NÜÜD ASENDATUD SELLE ÜHE REAGA:
                     return UserTile(userData: users[index]); 
                   },
                 );

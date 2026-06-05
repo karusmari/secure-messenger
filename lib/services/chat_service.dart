@@ -253,4 +253,39 @@ class ChatService {
       'count': 0,
     }, SetOptions(merge: true));
   }
+
+  Future<String> addChatByEmail(String email) async {
+    final String currentUid = _auth.currentUser!.uid;
+    final String currentEmail = _auth.currentUser?.email ?? '';
+
+    if (email.toLowerCase() == currentEmail.toLowerCase()) {
+      return "You scanned your own QR code!";
+    }
+
+    final userQuery = await _db
+        .collection('users')
+        .where('email', isEqualTo: email.toLowerCase())
+        .get();
+
+    if (userQuery.docs.isEmpty) {
+      return "No user found with email: $email";
+    }
+
+    final String targetUid = userQuery.docs.first.id;
+
+    // Lisame vestluse mõlemale poolele korraga
+    final batch = _db.batch();
+    
+    batch.update(_db.collection('users').doc(currentUid), {
+      'chatsWith': FieldValue.arrayUnion([targetUid])
+    });
+    
+    batch.update(_db.collection('users').doc(targetUid), {
+      'chatsWith': FieldValue.arrayUnion([currentUid])
+    });
+
+    await batch.commit();
+
+    return "Chat with $email added!";
+  }
 }

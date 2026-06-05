@@ -24,7 +24,6 @@ class _QrScannerScreenState extends State<QrScannerWidget> {
           if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
             final String scannedEmail = barcodes.first.rawValue!;
             
-            scannerController.dispose();
             // Tagastame skannitud emaili eelmisele ekraanile
             Navigator.pop(context, scannedEmail); 
           }
