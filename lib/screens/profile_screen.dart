@@ -202,7 +202,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       controller: _usernameController,
                       decoration: InputDecoration(
                         labelText: 'Username',
-                        hintText: 'Enter unique username...',
+                        hintText: 'Enter username...',
                         filled: true,
                         fillColor: Colors.grey[900],
                         border: OutlineInputBorder(

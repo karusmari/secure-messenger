@@ -12,13 +12,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for the email and password input fields
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  bool _isLogin = true; // showing either the login or register form based on this variable
-  bool _isLoading = false; // shows the loading spinner when the form is being submitted
-  String _errorMessage = ''; // For displaying error messages to the user
+  bool _isLogin = true;
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  String _errorMessage = '';
+
+  // 🌟 UUED TUMEDA REŽIIMI VÄRVID
+  final Color _primaryColor = const Color(0xFF6366F1);     // Neoon-indigo aktsendiks
+  final Color _backgroundColor = const Color(0xFF0F172A); // Sügav tume sinakas-must (Slate 900)
+  final Color _cardColor = const Color(0xFF1E293B);       // Veidi heledam tume sisestusväljadele (Slate 800)
+  final Color _textColor = const Color(0xFFF8FAFC);       // Peaaegu valge tekst (Slate 50)
 
   void _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
@@ -30,22 +36,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       if (_isLogin) {
-        // logging in
         await _auth.signInWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
       } else {
-        // registering
         await _auth.registerWithEmailAndPassword(
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
       }
-      // If successful, the StreamBuilder in main.dart will detect this and switch the screen!
     } catch (e) {
       setState(() {
-        // Clean up the Firebase error message for better readability
         _errorMessage = e.toString().contains('] ') 
             ? e.toString().split('] ').last 
             : e.toString();
@@ -60,96 +62,191 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Lock icon at the top of the form
-                const Icon(Icons.lock_outline, size: 80, color: Colors.blue),
-                const SizedBox(height: 16),
-                
-                // Title based on whether it's the login or register form
-                Text(
-                  _isLogin ? 'Welcome Back' : 'Create New Account',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 32),
-
-                // Email input field
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email),
-                    border: OutlineInputBorder(),
+      backgroundColor: _backgroundColor, // 🌟 Tume taust
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Ilus helendav ikoonikonteiner tumedal taustal
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isLogin ? Icons.lock_open_rounded : Icons.person_add_rounded,
+                      size: 50,
+                      color: _primaryColor,
+                    ),
                   ),
-                  validator: (val) => val!.isEmpty ? 'Please enter your email' : null,
-                ),
-                const SizedBox(height: 16),
-
-                // Password input field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true, // hides the password input
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (val) => val!.length < 6 ? 'Password must be at least 6 characters long' : null,
-                ),
-                
-                // Error message display (if one occurs)
-                if (_errorMessage.isNotEmpty) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+                  
+                  // Pealkiri helenda valge tekstiga
                   Text(
-                    _errorMessage,
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
+                    _isLogin ? 'Welcome Back' : 'Create Account',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: _textColor,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isLogin ? 'Sign in to continue your secure chats' : 'Get started by creating a new account',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[400]),
                     textAlign: TextAlign.center,
                   ),
+                  const SizedBox(height: 32),
+
+                  // 🌟 UUENDUS: Tumedad sisestusväljad, mis sulanduvad taustaga
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: TextStyle(color: _textColor), // Kasutaja kirjutatud tekst on valge
+                    decoration: InputDecoration(
+                      hintText: 'Email address',
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: Icon(Icons.mail_outline_rounded, color: Colors.grey[400]),
+                      filled: true,
+                      fillColor: _cardColor, // 🌟 Kast on tumedam hall
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey[800]!, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: _primaryColor, width: 2), // Helendab kui vajutad peale
+                      ),
+                    ),
+                    validator: (val) => val!.isEmpty ? 'Please enter your email' : null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Tume parooliväli
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    style: TextStyle(color: _textColor),
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      prefixIcon: Icon(Icons.lock_outline_rounded, color: Colors.grey[400]),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: Colors.grey[400],
+                        ),
+                        onPressed: () {
+                          setState(() => _obscurePassword = !_obscurePassword);
+                        },
+                      ),
+                      filled: true,
+                      fillColor: _cardColor,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey[800]!, width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: _primaryColor, width: 2),
+                      ),
+                    ),
+                    validator: (val) => val!.length < 6 ? 'Password must be at least 6 characters long' : null,
+                  ),
+                  
+                  // Tumedas režiimis kontrastne veateade
+                  if (_errorMessage.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _errorMessage,
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 28),
+
+                  // Nupp, mis hüppab tumedalt taustalt hästi esile
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _submitForm,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: _primaryColor,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            )
+                          : Text(
+                              _isLogin ? 'Log In' : 'Create Account',
+                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Alumine link režiimi vahetamiseks
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _isLogin = !_isLogin;
+                        _errorMessage = '';
+                      });
+                    },
+                    child: RichText(
+                      text: TextSpan(
+                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                        children: [
+                          TextSpan(text: _isLogin ? "Don't have an account? " : "Already have an account? "),
+                          TextSpan(
+                            text: _isLogin ? "Register" : "Log In",
+                            style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
-                const SizedBox(height: 24),
-
-                // Submit button (Login / Register)
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.blue,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : Text(_isLogin ? 'LOG IN' : 'REGISTER', style: const TextStyle(color: Colors.white)),
-                ),
-                const SizedBox(height: 16),
-
-                // The switch between login and register forms
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _isLogin = !_isLogin;
-                      _errorMessage = '';
-                    });
-                  },
-                  child: Text(
-                    _isLogin 
-                        ? 'Don\'t have an account yet? Register here' 
-                        : 'Already have an account? Log in',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

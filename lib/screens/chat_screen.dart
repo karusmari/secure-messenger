@@ -36,20 +36,23 @@ class _ChatScreenState extends State<ChatScreen> {
 
   String _chatRoomId = "";
 
+  // STIILIELEMENDID / VÄRVID (Saad siin muuta, et pealehega täpselt klapiks)
+  static const Color _darkBgColor = Color(0xFF121212); // Ekraani üldine taust
+  static const Color _myMessageColor = Color(0xFF6C63FF); // Minu sõnumi mull (Stiilne lilla/sinine)
+  static const Color _otherMessageColor = Color(0xFF1E1E1E); // Teise kasutaja mull
+  static const Color _secretMessageColor = Color(0xFF00BFA6); // Salajase sõnumi mull (Teemantroheline)
+
   @override
   void initState() {
     super.initState();
 
-    // 1. Genereerime unikaalse jututoa ID (et teada, millist tuba jälgida)
     final String currentUserId = _auth.currentUser!.uid;
     List<String> ids = [currentUserId, widget.receiverId];
     ids.sort();
     _chatRoomId = ids.join('_');
 
-    // 2. 🔕 NULLIME LUGEMATA SÕNUMID: Kui sisenen vestlusse, märgib äpp sõnumid loetuks
     _chatService.clearUnreadCount(widget.receiverId);
 
-    // 3. ✍️ TRÜKKIMISE KUULAJA: Kontrollib reaalajas, kas mina trükin tekstikasti midagi
     _messageController.addListener(() {
       if (_messageController.text.isNotEmpty && !_isTyping) {
         setState(() => _isTyping = true);
@@ -63,13 +66,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _sendMessage() async {
     if (_messageController.text.isNotEmpty) {
-      // Saadame kaasa ka info, kas see sõnum on salajane või mitte
       await _chatService.sendMessage(
         widget.receiverId,
         _messageController.text,
         _isSecretChat,
       );
-      _messageController.clear(); // Teeme kasti pärast saatmist tühjaks
+      _messageController.clear();
     }
   }
 
@@ -153,13 +155,11 @@ class _ChatScreenState extends State<ChatScreen> {
     String minute = dateTime.minute.toString().padLeft(2, '0');
     String timeStr = "$hour:$minute";
 
-    // Kui sõnum saadeti täna, näitame ainult kellaaega
     if (dateTime.year == now.year &&
         dateTime.month == now.month &&
         dateTime.day == now.day) {
       return timeStr;
     } else {
-      // Kui on vanem sõnum, näitame ka kuupäeva
       String day = dateTime.day.toString().padLeft(2, '0');
       String month = dateTime.month.toString().padLeft(2, '0');
       return "$day.$month $timeStr";
@@ -169,42 +169,38 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _darkBgColor, // Muudame lehe tausta modernselt tumedaks
       appBar: AppBar(
-        titleSpacing:
-            0, // Kaotame tühimiku, et pilt ja nimi oleksid ilusti koos
+        backgroundColor: Colors.transparent, // Läbipaistev ülariba sulandub taustaga
+        elevation: 0,
+        titleSpacing: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
               .collection('users')
-              .doc(
-                widget.receiverId,
-              ) // Kuulame reaalajas selle kasutaja andmeid
+              .doc(widget.receiverId)
               .snapshots(),
           builder: (context, snapshot) {
-            String displayName = widget.receiverEmail; // Vaikimisi email
+            String displayName = widget.receiverEmail;
             String? base64Image;
-            String userLetter = widget.receiverEmail
-                .substring(0, 1)
-                .toUpperCase();
+            String userLetter = widget.receiverEmail.substring(0, 1).toUpperCase();
 
             if (snapshot.hasData && snapshot.data!.exists) {
               final userData = snapshot.data!.data() as Map<String, dynamic>?;
 
-              // Kui tal on kasutajanimi, võtame selle
               if (userData?['username'] != null &&
                   userData!['username'].toString().isNotEmpty) {
                 displayName = userData['username'];
                 userLetter = displayName.substring(0, 1).toUpperCase();
               }
-              // Võtame profiilipildi
               base64Image = userData?['profilePicture'];
             }
 
             return Row(
               children: [
-                // 👥 TEISE KASUTAJA AVATAR VESTLUSE ÜLAL RIBAS
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: Colors.blue[700],
+                  backgroundColor: _myMessageColor.withOpacity(0.2),
                   child: base64Image != null && base64Image.isNotEmpty
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(18),
@@ -224,18 +220,16 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ),
                 ),
-
-                const SizedBox(width: 12), // Vahemaa pildi ja nime vahel
-                // KASUTAJA NIMI / EMAIL
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     displayName,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
-                    overflow: TextOverflow
-                        .ellipsis, // Kui on liiga pikk nimi, tõmbab kolm täppi (...)
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -245,7 +239,10 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // 1. SÕNUMITE NIMEKIRI (Reaalajas striim andmebaasist)
+          // Eraldusjoon ülariba alla, mis sobib tumeda teemaga
+          Container(height: 1, color: Colors.white.withOpacity(0.05)),
+          
+          // 1. SÕNUMITE NIMEKIRI
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _chatService.getMessages(
@@ -254,41 +251,33 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Center(child: Text('Error loading messages.'));
+                  return const Center(child: Text('Error loading messages.', style: TextStyle(color: Colors.white54)));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: _myMessageColor));
                 }
 
                 if (snapshot.hasData) {
                   _markVisibleMessagesAsRead(snapshot.data!);
                 }
 
-                // nullime lugemata sõnumite arvu, kui kasutaja avab vestluse
                 _chatService.clearUnreadCount(widget.receiverId);
 
-                // Kuvame sõnumid nimekirjana
                 return ListView(
-                  reverse:
-                      true, // Et uusimad sõnumid oleksid all ja vanemad üles
-                  padding: const EdgeInsets.all(16),
+                  reverse: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   children: snapshot.data!.docs.map((doc) {
-                    Map<String, dynamic> data =
-                        doc.data() as Map<String, dynamic>;
+                    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
                     String senderId = data['senderId'] ?? '';
                     bool isMe = senderId == _auth.currentUser!.uid;
 
-                    // Küsime andmebaasist teksti ja kontrollime krüpteeritust
                     String messageText = data['message'] ?? '';
                     bool msgIsSecret = data['isSecret'] ?? false;
                     bool msgIsRead = data['isRead'] ?? false;
                     bool msgIsEdited = data['isEdited'] ?? false;
                     bool isEditingThisMessage =
-                        isMe &&
-                        _isEditingMessage &&
-                        _editingMessageId == doc.id;
+                        isMe && _isEditingMessage && _editingMessageId == doc.id;
 
-                    // 🔓 KUI SÕNUM ON SALAJANE, DEKRÜPTEERIME SELLE KASUTAJA JAOKS
                     if (msgIsSecret) {
                       messageText = EncryptionService.decryptText(messageText);
                     }
@@ -296,15 +285,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     String formattedTime = _formatTimestamp(data['timestamp']);
 
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      padding: const EdgeInsets.symmetric(vertical: 6.0),
                       child: Row(
-                        mainAxisAlignment: isMe
-                            ? MainAxisAlignment.end
-                            : MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment
-                            .end, // Joondab avatari mulli alläärega
+                        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          // 👥 TEISE KASUTAJA AVATAR SÕNUMI KÕRVAL (Kuvatakse ainult vasakpoolsetel sõnumitel)
                           if (!isMe) ...[
                             StreamBuilder<DocumentSnapshot>(
                               stream: FirebaseFirestore.instance
@@ -313,132 +298,105 @@ class _ChatScreenState extends State<ChatScreen> {
                                   .snapshots(),
                               builder: (context, userSnapshot) {
                                 String? avatarBytes;
-                                String fallbackLetter = widget.receiverEmail
-                                    .substring(0, 1)
-                                    .toUpperCase();
+                                String fallbackLetter = widget.receiverEmail.substring(0, 1).toUpperCase();
 
-                                if (userSnapshot.hasData &&
-                                    userSnapshot.data!.exists) {
-                                  final uData =
-                                      userSnapshot.data!.data()
-                                          as Map<String, dynamic>?;
+                                if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                                  final uData = userSnapshot.data!.data() as Map<String, dynamic>?;
                                   avatarBytes = uData?['profilePicture'];
                                   if (uData?['username'] != null &&
-                                      uData!['username']
-                                          .toString()
-                                          .isNotEmpty) {
-                                    fallbackLetter = uData['username']
-                                        .toString()
-                                        .substring(0, 1)
-                                        .toUpperCase();
+                                      uData!['username'].toString().isNotEmpty) {
+                                    fallbackLetter = uData['username'].toString().substring(0, 1).toUpperCase();
                                   }
                                 }
 
                                 return CircleAvatar(
-                                  radius:
-                                      15, // Puhas ja kompaktne suurus vestluse sisse
-                                  backgroundColor: Colors.blueGrey[800],
-                                  child:
-                                      avatarBytes != null &&
-                                          avatarBytes.isNotEmpty
+                                  radius: 14,
+                                  backgroundColor: Colors.white.withOpacity(0.1),
+                                  child: avatarBytes != null && avatarBytes.isNotEmpty
                                       ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            15,
-                                          ),
+                                          borderRadius: BorderRadius.circular(14),
                                           child: Image.memory(
                                             base64Decode(avatarBytes),
-                                            width: 30,
-                                            height: 30,
+                                            width: 28,
+                                            height: 28,
                                             fit: BoxFit.cover,
                                           ),
                                         )
                                       : Text(
                                           fallbackLetter,
                                           style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
+                                            color: Colors.white70,
+                                            fontSize: 10,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                 );
                               },
                             ),
-                            const SizedBox(
-                              width: 8,
-                            ), // Vahemaa avatari ja sõnumimulli vahel
+                            const SizedBox(width: 8),
                           ],
 
-                          // SÕNUMIMULL + KELLAAEG KAUSTAS
+                          // SÕNUMIMULLI DISAIN (ÜMARAD NURGAD)
                           Column(
-                            crossAxisAlignment: isMe
-                                ? CrossAxisAlignment.end
-                                : CrossAxisAlignment.start,
+                            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                             children: [
                               if (!isEditingThisMessage)
                                 GestureDetector(
                                   onTap: isMe
                                       ? () => _startEditingMessage(
-                                          doc.id,
-                                          messageText,
-                                          msgIsSecret,
-                                        )
+                                            doc.id,
+                                            messageText,
+                                            msgIsSecret,
+                                          )
                                       : null,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 10,
-                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     constraints: BoxConstraints(
-                                      maxWidth:
-                                          MediaQuery.of(context).size.width *
-                                          0.65,
+                                      maxWidth: MediaQuery.of(context).size.width * 0.7,
                                     ),
                                     decoration: BoxDecoration(
                                       color: msgIsSecret
-                                          ? Colors.green[700]
-                                          : (isMe
-                                                ? Colors.blue[600]
-                                                : Colors.grey[800]),
+                                          ? _secretMessageColor
+                                          : (isMe ? _myMessageColor : _otherMessageColor),
+                                      // 🌟 MUUDATUS: Palju ümaramad nurgad, mis kohanduvad vastavalt saatjale
                                       borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(16),
-                                        topRight: const Radius.circular(16),
-                                        bottomLeft: Radius.circular(
-                                          isMe ? 16 : 0,
-                                        ),
-                                        bottomRight: Radius.circular(
-                                          isMe ? 0 : 16,
-                                        ),
+                                        topLeft: const Radius.circular(20),
+                                        topRight: const Radius.circular(20),
+                                        bottomLeft: Radius.circular(isMe ? 20 : 4),
+                                        bottomRight: Radius.circular(isMe ? 4 : 20),
                                       ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        )
+                                      ],
                                     ),
                                     child: Text(
                                       messageText,
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 15,
+                                        height: 1.2,
                                       ),
                                     ),
                                   ),
                                 )
                               else
+                                // Muudetava sõnumi kast (sobitatud ümara stiiliga)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
+                                  padding: const EdgeInsets.all(12),
                                   constraints: BoxConstraints(
-                                    maxWidth:
-                                        MediaQuery.of(context).size.width *
-                                        0.65,
+                                    maxWidth: MediaQuery.of(context).size.width * 0.7,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey[900],
+                                    color: _darkBgColor,
                                     border: Border.all(
-                                      color: msgIsSecret
-                                          ? Colors.green
-                                          : Colors.blue,
-                                      width: 1.2,
+                                      color: msgIsSecret ? _secretMessageColor : _myMessageColor,
+                                      width: 1.5,
                                     ),
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -448,10 +406,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                         focusNode: _editingMessageFocusNode,
                                         autofocus: true,
                                         maxLines: null,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 15,
-                                        ),
+                                        style: const TextStyle(color: Colors.white, fontSize: 15),
                                         decoration: const InputDecoration(
                                           border: InputBorder.none,
                                           isDense: true,
@@ -463,17 +418,17 @@ class _ChatScreenState extends State<ChatScreen> {
                                         children: [
                                           TextButton(
                                             onPressed: _cancelEditing,
-                                            child: const Text('Cancel'),
+                                            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
                                           ),
-                                          const SizedBox(width: 8),
+                                          const SizedBox(width: 4),
                                           ElevatedButton(
                                             onPressed: _saveEditedMessage,
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: msgIsSecret
-                                                  ? Colors.green
-                                                  : Colors.blue,
+                                              backgroundColor: msgIsSecret ? _secretMessageColor : _myMessageColor,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                             ),
-                                            child: const Text('Save'),
+                                            child: const Text('Save', style: TextStyle(color: Colors.white)),
                                           ),
                                         ],
                                       ),
@@ -481,13 +436,13 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ),
                                 ),
 
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
 
-                              // 🕒 KELLAAEG JA KUUPÄEV TEKSTI ALL
+                              // STAATUS JA KELLAAEG
                               Padding(
                                 padding: EdgeInsets.only(
-                                  left: isMe ? 0 : 4,
-                                  right: isMe ? 4 : 0,
+                                  left: isMe ? 0 : 6,
+                                  right: isMe ? 6 : 0,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -495,7 +450,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                     Text(
                                       formattedTime,
                                       style: TextStyle(
-                                        color: Colors.grey[500],
+                                        color: Colors.white.withOpacity(0.4),
                                         fontSize: 10,
                                       ),
                                     ),
@@ -504,39 +459,23 @@ class _ChatScreenState extends State<ChatScreen> {
                                       Icon(
                                         msgIsRead ? Icons.done_all : Icons.done,
                                         size: 12,
-                                        color: msgIsRead
-                                            ? Colors.lightBlueAccent
-                                            : Colors.grey[600],
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        msgIsRead ? 'Read' : 'Sent',
-                                        style: TextStyle(
-                                          color: msgIsRead
-                                              ? Colors.lightBlueAccent
-                                              : Colors.grey[500],
-                                          fontSize: 10,
-                                        ),
+                                        color: msgIsRead ? _secretMessageColor : Colors.white24,
                                       ),
                                     ],
+                                    if (msgIsEdited) ...[
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '• Edited',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.3),
+                                          fontSize: 10,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ]
                                   ],
                                 ),
                               ),
-                              if (msgIsEdited)
-                                Padding(
-                                  padding: EdgeInsets.only(
-                                    left: isMe ? 0 : 4,
-                                    right: isMe ? 4 : 0,
-                                  ),
-                                  child: Text(
-                                    'Edited',
-                                    style: TextStyle(
-                                      color: Colors.grey[500],
-                                      fontSize: 10,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ),
                             ],
                           ),
                         ],
@@ -548,12 +487,9 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // 🔥 2. UUS OSA: TRÜKKIMISE INDIKAATOR (Kuvatakse täpselt sisestuskasti kohal)
+          // 2. TRÜKKIMISE INDIKAATOR
           StreamBuilder<bool>(
-            stream: _chatService.getTypingStatusStream(
-              _chatRoomId,
-              widget.receiverId,
-            ),
+            stream: _chatService.getTypingStatusStream(_chatRoomId, widget.receiverId),
             builder: (context, snapshot) {
               if (snapshot.data == true) {
                 return Padding(
@@ -564,8 +500,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       "${widget.receiverEmail.split('@')[0]} is typing...",
                       style: TextStyle(
                         fontStyle: FontStyle.italic,
-                        color: Colors.grey[500],
-                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.4),
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -575,63 +511,95 @@ class _ChatScreenState extends State<ChatScreen> {
             },
           ),
 
-          // 2. SÕNUMI SISSEKANDE VÄLI (Luku nupp + Tekstikast + Saatmise nupp)
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                // 🔒 TABALUKU NUPP: Lülitab salajase vestluse sisse/välja
-                IconButton(
-                  icon: Icon(
-                    _isSecretChat ? Icons.lock : Icons.lock_open,
-                    color: _isSecretChat ? Colors.green : Colors.grey,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isSecretChat = !_isSecretChat;
-                    });
-
-                    // Teavitame kasutajat režiimi muutusest väikese ribaga ekraani all
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          _isSecretChat
-                              ? 'Secret Chat Enabled (Messages will be encrypted)'
-                              : 'Normal Chat Enabled',
-                        ),
-                        duration: const Duration(seconds: 1),
+          // 3. SISESTUSALA (Pill / kapsli kujuline, väga voolujooneline)
+          SafeArea(
+            bottom: true,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  // Luku nupp
+                  CircleAvatar(
+                    backgroundColor: _isSecretChat 
+                        ? _secretMessageColor.withOpacity(0.15) 
+                        : Colors.white.withOpacity(0.05),
+                    child: IconButton(
+                      icon: Icon(
+                        _isSecretChat ? Icons.lock : Icons.lock_open_rounded,
+                        color: _isSecretChat ? _secretMessageColor : Colors.white54,
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: _isSecretChat
-                          ? 'Write a secret message...'
-                          : 'Write a message...',
-                      border: const OutlineInputBorder(),
-                      // Kui salajane vestlus on sees, muudame tekstikasti ääre roheliseks
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: _isSecretChat ? Colors.green : Colors.blue,
-                          width: 2.0,
+                      onPressed: () {
+                        setState(() {
+                          _isSecretChat = !_isSecretChat;
+                        });
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: _isSecretChat ? _secretMessageColor : _otherMessageColor,
+                            content: Text(
+                              _isSecretChat
+                                  ? 'Secret Chat Enabled (End-to-End Encrypted)'
+                                  : 'Normal Chat Enabled',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                            ),
+                            duration: const Duration(milliseconds: 300),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            margin: EdgeInsets.only(
+                              bottom: MediaQuery.of(context).size.height * 0.12,
+                              left: 16,
+                              right: 16,
+                            )
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  
+                  // Ümar tekstikast
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText: _isSecretChat ? 'Write a secret message...' : 'Write a message...',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                        fillColor: _otherMessageColor,
+                        filled: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        // 🌟 TÄIELIKULT ÜMARAD ÄÄRED TEKSTIKASTILE
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(26),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(26),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(26),
+                          borderSide: BorderSide(
+                            color: _isSecretChat ? _secretMessageColor : _myMessageColor,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    Icons.send,
-                    color: _isSecretChat ? Colors.green : Colors.blue,
+                  const SizedBox(width: 8),
+                  
+                  // Saatmisnupp ringi sees
+                  CircleAvatar(
+                    backgroundColor: _isSecretChat ? _secretMessageColor : _myMessageColor,
+                    radius: 24,
+                    child: IconButton(
+                      icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                      onPressed: _sendMessage,
+                    ),
                   ),
-                  onPressed: _sendMessage,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -644,13 +612,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.dispose();
     _editingMessageController.dispose();
     _editingMessageFocusNode.dispose();
-    _chatService.clearUnreadCount(
-      widget.receiverId,
-    ); // Ja nullin lugemata sõnumite arvu, kui lahkun vestlusest
-    _chatService.setTypingStatus(
-      widget.receiverId,
-      false,
-    ); // Kui lahkun vestlusest, lülitan trükkimise välja
+    _chatService.clearUnreadCount(widget.receiverId);
+    _chatService.setTypingStatus(widget.receiverId, false);
     super.dispose();
   }
 }
