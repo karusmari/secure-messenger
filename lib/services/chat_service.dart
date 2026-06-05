@@ -29,6 +29,10 @@ class ChatService {
       'message': messageToSend,
       'timestamp': timestamp,
       'isSecret': isSecret, 
+      'isRead': false,
+      'readAt': null,
+      'isEdited': false,
+      'editedAt': null,
     };
 
     // Genereerime unikaalse ruumi ID kahe kasutaja jaoks (järjestame tähestiku alusel, et mõlemal oleks sama ID)
@@ -76,6 +80,63 @@ class ChatService {
         .collection('messages')
         .orderBy('timestamp', descending: true)
         .snapshots();
+  }
+
+  Future<void> markMessagesAsRead(String otherUserId) async {
+    final String currentUserId = _auth.currentUser!.uid;
+    List<String> ids = [currentUserId, otherUserId];
+    ids.sort();
+    String chatRoomId = ids.join('_');
+
+    final messageSnapshot = await _db
+        .collection('chats')
+        .doc(chatRoomId)
+        .collection('messages')
+        .get();
+
+    final unreadMessages = messageSnapshot.docs.where((doc) {
+      final data = doc.data();
+      return data['receiverId'] == currentUserId &&
+          data['senderId'] == otherUserId &&
+          data['isRead'] != true;
+    }).toList();
+
+    if (unreadMessages.isEmpty) {
+      return;
+    }
+
+    final batch = _db.batch();
+    final Timestamp readAt = Timestamp.now();
+
+    for (final doc in unreadMessages) {
+      batch.update(doc.reference, {
+        'isRead': true,
+        'readAt': readAt,
+      });
+    }
+
+    await batch.commit();
+  }
+
+  Future<void> editMessage(String receiverId, String messageId, String newMessage, bool isSecret) async {
+    final String currentUserId = _auth.currentUser!.uid;
+    final String messageToSave = isSecret ? EncryptionService.encryptText(newMessage) : newMessage;
+
+    List<String> ids = [currentUserId, receiverId];
+    ids.sort();
+    String chatRoomId = ids.join('_');
+
+    await _db
+        .collection('chats')
+        .doc(chatRoomId)
+        .collection('messages')
+        .doc(messageId)
+        .update({
+      'message': messageToSave,
+      'isSecret': isSecret,
+      'isEdited': true,
+      'editedAt': Timestamp.now(),
+    });
   }
 
   // 3. TOOME KÕIK KASUTAJAD (Et näidata neid pealehel nimekirjana)

@@ -137,6 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     TextButton.icon(
                       onPressed: () {
+                        final String qrData = _auth.currentUser?.email ?? "test_user_emulator@test.com";
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
@@ -152,10 +153,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Container(
                                   color: Colors.white,
                                   padding: const EdgeInsets.all(10),
+                                  width: 220, // Fikseeritud laius aitab emulaatoril suurust arvutada
+                                  height: 220, // Fikseeritud kõrgus
                                   child: QrImageView(
-                                    data: _auth.currentUser!.email ?? "",
+                                    data: qrData,
                                     version: QrVersions.auto,
                                     size: 200.0,
+                                    // 🎨 EMULAATORI GRAAFIKA PARANDUS: Sunnime ruudud mustaks
+                                    eyeStyle: const QrEyeStyle(
+                                      eyeShape: QrEyeShape.square,
+                                      color: Colors.black,
+                                    ),
+                                    dataModuleStyle: const QrDataModuleStyle(
+                                      dataModuleShape: QrDataModuleShape.square,
+                                      color: Colors.black,
+                                    ),
+                                    // Kui tekib viga renderdamisel, kuvatakse teksti kujul veateade
+                                    errorStateBuilder: (cxt, err) {
+                                      return Center(
+                                        child: Text(
+                                          "QR render error: $err",
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ],
