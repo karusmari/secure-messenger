@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Secure Messenger',
       debugShowCheckedModeBanner: false,
-      home: const AuthWrapper(), // Muudatus siin (ainult üks algusekraan)
+      home: const AuthWrapper(), 
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF181C14),
         appBarTheme: const AppBarTheme(
@@ -33,11 +33,11 @@ class MyApp extends StatelessWidget {
           iconTheme: IconThemeData(color: Color(0xFFECDFCC)),
         ),
         
-        // Üldine värviskeem (määrab ära kaardid, nupud jne)
+        // Overall color scheme for the app, used for various elements and text
         colorScheme: const ColorScheme.dark(
-          surface:  Color(0xFF3C3D37),      // Elementide taust (3C3D37)
-          primary: Color(0xFFECDFCC),      // Põhivärv / Tekstivärv (ECDFCC)
-          secondary: Color(0xFF697565),    // Sekundaarne (697565)
+          surface:  Color(0xFF3C3D37),      // background for messages and tiles
+          primary: Color(0xFFECDFCC),      // Main text color 
+          secondary: Color(0xFF697565),    // Secondary text color (e.g., timestamps, read receipts)
         ),
 
         textTheme: const TextTheme(

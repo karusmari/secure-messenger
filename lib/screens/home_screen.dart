@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:secure_messenger/services/chat_service.dart';
 import '../services/firebase_auth.dart'; 
 import '../widgets/qr_scan_button.dart';   
-import '../widgets/user_tile.dart';         
+import '../widgets/user_tile.dart';
+import '../services/profile_service.dart';         
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final AuthService authService = AuthService();
   final ChatService chatService = ChatService();
   final FirebaseAuth auth = FirebaseAuth.instance;
+  final ProfileService profileService = ProfileService();
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
@@ -27,13 +29,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Secure Chats'),
+        title: const Text('Secure Messenger'),
         elevation: 0,
         actions: [
-          // 🌟 UUS VIDIN: Teeb kogu skännimise ja kasutaja lisamise töö ise ära
+          // a widget to start scanning QR codes and handle the whole flow of adding a new chat by email
           QrScanButton(),
           
-          // Oma profiilipilt
+          // My avatar in the top right corner
           StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance.collection('users').doc(auth.currentUser!.uid).snapshots(),
             builder: (context, snapshot) {
@@ -47,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   userLetter = userData['username'].toString().substring(0, 1).toUpperCase();
                 }
               }
-
+              // when tapping the avatar
               return GestureDetector(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())),
                 child: Padding(
@@ -74,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          // Otsingukast
+          // Search bar to filter contacts by email or username
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
             child: TextField(
@@ -99,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Kasutajate reaalaegne nimekiri
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: chatService.getUsersStream(),
+              stream: profileService.getUsersStream(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) return const Center(child: Text('Something went wrong.'));
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());

@@ -1,27 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:secure_messenger/services/encryption_service.dart';
-import 'dart:convert';
-import 'dart:io';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // 1. SAA DA SÕNUM
+  // 1. SAADA SÕNUM
   Future<void> sendMessage(String receiverId, String message, bool isSecret) async {
-
-    //in case of a secret chat we will encrypt it
-    String messageToSend = message;
-    if (isSecret) {
-      messageToSend = EncryptionService.encryptText(message);
-    }
-    // Küsime praeguse sisselogitud kasutaja andmed
+    String messageToSend = isSecret ? EncryptionService.encryptText(message) : message;
+    
     final String currentUserId = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email ?? '';
     final Timestamp timestamp = Timestamp.now();
 
-    // Loome sõnumi objekti
     Map<String, dynamic> newMessage = {
       'senderId': currentUserId,
       'senderEmail': currentUserEmail,
@@ -35,19 +27,13 @@ class ChatService {
       'editedAt': null,
     };
 
-    // Genereerime unikaalse ruumi ID kahe kasutaja jaoks (järjestame tähestiku alusel, et mõlemal oleks sama ID)
     List<String> ids = [currentUserId, receiverId];
     ids.sort();
-    String chatRoomId = ids.join('_'); // Tulemus näiteks: uid1_uid2
+    String chatRoomId = ids.join('_');
 
-    // Salvestame sõnumi andmebaasi
-    await _db
-        .collection('chats')
-        .doc(chatRoomId)
-        .collection('messages')
-        .add(newMessage);
+    await _db.collection('chats').doc(chatRoomId).collection('messages').add(newMessage);
 
-        // See loob massiivi 'chatsWith', kus on kirjas kõigi suheldud inimeste ID-d.
+    // Salvestame seose chatsWith massiivi
     await _db.collection('users').doc(currentUserId).update({
       'chatsWith': FieldValue.arrayUnion([receiverId])
     }).catchError((_) => _db.collection('users').doc(currentUserId).set({'chatsWith': [receiverId]}, SetOptions(merge: true)));
@@ -56,24 +42,18 @@ class ChatService {
       'chatsWith': FieldValue.arrayUnion([currentUserId])
     }).catchError((_) => _db.collection('users').doc(receiverId).set({'chatsWith': [currentUserId]}, SetOptions(merge: true)));
 
-    // sonumi kättesaamise teavitus
-    await _db
-        .collection('users')
-        .doc(receiverId)
-        .collection('unread')
-        .doc(currentUserId)
-        .set({
+    // Lugemata sõnumite arv +1
+    await _db.collection('users').doc(receiverId).collection('unread').doc(currentUserId).set({
       'count': FieldValue.increment(1),
     }, SetOptions(merge: true));
   }
 
-  // 2. KUULA SÕNUMEID REAALAJAS (Stream)
+  // 2. KUULA SÕNUMEID REAALAJAS
   Stream<QuerySnapshot> getMessages(String userId, String otherUserId) {
     List<String> ids = [userId, otherUserId];
     ids.sort();
     String chatRoomId = ids.join('_');
 
-    // Toome sõnumid ajaliselt järjestatuna (kõige uuemad tulevad järjest juurde)
     return _db
         .collection('chats')
         .doc(chatRoomId)
@@ -82,42 +62,32 @@ class ChatService {
         .snapshots();
   }
 
+  // MÄRGI SÕNUMID LOETUKS
   Future<void> markMessagesAsRead(String otherUserId) async {
     final String currentUserId = _auth.currentUser!.uid;
     List<String> ids = [currentUserId, otherUserId];
     ids.sort();
     String chatRoomId = ids.join('_');
 
-    final messageSnapshot = await _db
-        .collection('chats')
-        .doc(chatRoomId)
-        .collection('messages')
-        .get();
+    final messageSnapshot = await _db.collection('chats').doc(chatRoomId).collection('messages').get();
 
     final unreadMessages = messageSnapshot.docs.where((doc) {
       final data = doc.data();
-      return data['receiverId'] == currentUserId &&
-          data['senderId'] == otherUserId &&
-          data['isRead'] != true;
+      return data['receiverId'] == currentUserId && data['senderId'] == otherUserId && data['isRead'] != true;
     }).toList();
 
-    if (unreadMessages.isEmpty) {
-      return;
-    }
+    if (unreadMessages.isEmpty) return;
 
     final batch = _db.batch();
     final Timestamp readAt = Timestamp.now();
 
     for (final doc in unreadMessages) {
-      batch.update(doc.reference, {
-        'isRead': true,
-        'readAt': readAt,
-      });
+      batch.update(doc.reference, {'isRead': true, 'readAt': readAt});
     }
-
     await batch.commit();
   }
 
+  // MUUDA SÕNUMIT
   Future<void> editMessage(String receiverId, String messageId, String newMessage, bool isSecret) async {
     final String currentUserId = _auth.currentUser!.uid;
     final String messageToSave = isSecret ? EncryptionService.encryptText(newMessage) : newMessage;
@@ -126,12 +96,7 @@ class ChatService {
     ids.sort();
     String chatRoomId = ids.join('_');
 
-    await _db
-        .collection('chats')
-        .doc(chatRoomId)
-        .collection('messages')
-        .doc(messageId)
-        .update({
+    await _db.collection('chats').doc(chatRoomId).collection('messages').doc(messageId).update({
       'message': messageToSave,
       'isSecret': isSecret,
       'isEdited': true,
@@ -139,21 +104,20 @@ class ChatService {
     });
   }
 
-  // 3. TOOME KÕIK KASUTAJAD (Et näidata neid pealehel nimekirjana)
-  Stream<List<Map<String, dynamic>>> getUsersStream() {
-    return _db.collection('users').snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['uid'] = doc.id; // Lisame dokumendi ID andmetesse, et saaksime hiljem kasutaja ID-d kasutada
-        return data;
-      }).toList();
-    });
+  // KUSTUTA SÕNUM
+  Future<void> deleteMessage(String receiverId, String messageId) async {
+    final String currentUserId = _auth.currentUser!.uid;
+    List<String> ids = [currentUserId, receiverId];
+    ids.sort();
+    String chatRoomId = ids.join('_');
+
+    await _db.collection('chats').doc(chatRoomId).collection('messages').doc(messageId).delete();
   }
-  // 4. TOOME KASUTAJAD, KELLEGA ON REAALNE VESTLUS OLEMAS (Parandatud versioon)
+
+  // AKTIIVSED VESTLUSED
   Stream<List<Map<String, dynamic>>> getActiveChatsStream() {
     final String currentUserId = _auth.currentUser!.uid;
 
-    // Kuulame kõiki kasutajaid
     return _db.collection('users').snapshots().asyncMap((snapshot) async {
       List<Map<String, dynamic>> activeUsers = [];
 
@@ -164,18 +128,11 @@ class ChatService {
 
         if (otherUserId == currentUserId) continue;
 
-        // Kontrollime suvalist jututuba kahe kasutaja vahel (mõlemat pidi sorteeritult)
         List<String> ids = [currentUserId, otherUserId];
         ids.sort();
         String chatRoomId = ids.join('_');
 
-        // Vaatame, kas seal on kasvõi üks sõnum olemas
-        final messageSnapshot = await _db
-            .collection('chats')
-            .doc(chatRoomId)
-            .collection('messages')
-            .limit(1)
-            .get();
+        final messageSnapshot = await _db.collection('chats').doc(chatRoomId).collection('messages').limit(1).get();
 
         if (messageSnapshot.docs.isNotEmpty) {
           activeUsers.add(data);
@@ -185,51 +142,19 @@ class ChatService {
     });
   }
 
-  // 6. MUUDA PILT TEKSTIKS JA SALVESTA FIRESTORE'I (TASUTA JA LOLLIKINDEL)
-  Future<void> uploadAndChangeProfilePicture(File imageFile) async {
-    final String currentUserId = _auth.currentUser!.uid;
-
-    try {
-      // Loeme faili bittidena sisse
-      List<int> imageBytes = await imageFile.readAsBytes();
-      // Muudame bitid Base64 tekstijadaks
-      String base64Image = base64Encode(imageBytes);
-
-      // Salvestame selle pika teksti otse kasutaja profiili alla
-      await _db.collection('users').doc(currentUserId).update({
-        'profilePicture': base64Image,
-      });
-    } catch (e) {
-      throw Exception("Failed to save image: $e");
-    }
-  }
-
-  // 5. UUEDA KASUTAJA PROFIILI (Kasutajanimi ja pilt)
-  Future<void> updateUserProfile(String username, String profilePicUrl) async {
-    final String currentUserId = _auth.currentUser!.uid;
-
-    await _db.collection('users').doc(currentUserId).update({
-      'username': username,
-      'profilePicture': profilePicUrl,
-    });
-  }
-
-  // 7. UUEDA TRÜKKIMISE STAATUST
+  // MUUDA TRÜKKIMISE STAATUST
   Future<void> setTypingStatus(String receiverId, bool isTyping) async {
     final String currentUserId = _auth.currentUser!.uid;
     List<String> ids = [currentUserId, receiverId];
     ids.sort();
     String chatRoomId = ids.join('_');
 
-    // Salvestame vestlusruumi dokumenti info, kes parajasti trükib
     await _db.collection('chats').doc(chatRoomId).set({
-      'typing': {
-        currentUserId: isTyping,
-      }
+      'typing': { currentUserId: isTyping }
     }, SetOptions(merge: true));
   }
 
-  // 8. KUULA, KAS TEINE KASUTAJA TRÜKIB
+  // KUULA TRÜKKIMIST
   Stream<bool> getTypingStatusStream(String chatRoomId, String receiverId) {
     return _db.collection('chats').doc(chatRoomId).snapshots().map((snapshot) {
       if (snapshot.exists && snapshot.data() != null) {
@@ -240,52 +165,11 @@ class ChatService {
     });
   }
 
-  // 9. NULLI LUGEMATA SÕNUMITE ARV (Kui kasutaja avab vestluse)
+  // NULLI LUGEMATA SÕNUMID
   Future<void> clearUnreadCount(String callerId) async {
     final String currentUserId = _auth.currentUser!.uid;
-    
-    await _db
-        .collection('users')
-        .doc(currentUserId)
-        .collection('unread')
-        .doc(callerId)
-        .set({
+    await _db.collection('users').doc(currentUserId).collection('unread').doc(callerId).set({
       'count': 0,
     }, SetOptions(merge: true));
-  }
-
-  Future<String> addChatByEmail(String email) async {
-    final String currentUid = _auth.currentUser!.uid;
-    final String currentEmail = _auth.currentUser?.email ?? '';
-
-    if (email.toLowerCase() == currentEmail.toLowerCase()) {
-      return "You scanned your own QR code!";
-    }
-
-    final userQuery = await _db
-        .collection('users')
-        .where('email', isEqualTo: email.toLowerCase())
-        .get();
-
-    if (userQuery.docs.isEmpty) {
-      return "No user found with email: $email";
-    }
-
-    final String targetUid = userQuery.docs.first.id;
-
-    // Lisame vestluse mõlemale poolele korraga
-    final batch = _db.batch();
-    
-    batch.update(_db.collection('users').doc(currentUid), {
-      'chatsWith': FieldValue.arrayUnion([targetUid])
-    });
-    
-    batch.update(_db.collection('users').doc(targetUid), {
-      'chatsWith': FieldValue.arrayUnion([currentUid])
-    });
-
-    await batch.commit();
-
-    return "Chat with $email added!";
   }
 }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/chat_service.dart';
+import '../services/profile_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -17,7 +17,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final ChatService _chatService = ChatService();
+  final ProfileService _profileService = ProfileService();
 
   final TextEditingController _usernameController = TextEditingController();
   String _profilePicBase64 = "";
@@ -57,7 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (image != null) {
       setState(() => _isLoading = true);
       try {
-        await _chatService.uploadAndChangeProfilePicture(File(image.path));
+        await _profileService.uploadAndChangeProfilePicture(File(image.path));
         _loadUserData(); // Värskendame ekraani
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile picture updated!'), backgroundColor: Colors.green),
@@ -74,7 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _saveProfile() async {
     setState(() => _isLoading = true);
     try {
-      await _chatService.updateUserProfile(
+      await _profileService.updateUserProfile(
         _usernameController.text.trim(),
         _profilePicBase64,
       );
