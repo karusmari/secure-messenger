@@ -5,6 +5,11 @@ class ChatInputArea extends StatelessWidget {
   final bool isSecretChat;
   final VoidCallback onToggleSecret;
   final VoidCallback onSendMessage;
+  
+  // LAHENDUS: Lisame callback-funktsioonid meedia saatmiseks, 
+  // et ChatScreen saaks sellega tegeleda
+  final Function(String type) onMediaSelected; 
+
   final Color myMessageColor;
   final Color otherMessageColor;
   final Color secretMessageColor;
@@ -15,10 +20,61 @@ class ChatInputArea extends StatelessWidget {
     required this.isSecretChat,
     required this.onToggleSecret,
     required this.onSendMessage,
+    required this.onMediaSelected, // Kohustuslik parameeter uue nupu jaoks
     required this.myMessageColor,
     required this.otherMessageColor,
     required this.secretMessageColor,
   });
+
+  // Ilus menüü, mis hüppab alt üles, kui vajutatakse kirjaklambrile
+  void _showAttachmentMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: otherMessageColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.image, color: Colors.white70),
+                title: const Text('Send Image', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  onMediaSelected('image');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.video_collection, color: Colors.white70),
+                title: const Text('Send Video', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  onMediaSelected('video');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.audiotrack, color: Colors.white70),
+                title: const Text('Send Audio', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  onMediaSelected('audio');
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +84,7 @@ class ChatInputArea extends StatelessWidget {
         padding: const EdgeInsets.all(12.0),
         child: Row(
           children: [
-            // Luku nupp
+            // 1. Luku nupp (Secret chat)
             CircleAvatar(
               backgroundColor: isSecretChat
                   ? secretMessageColor.withOpacity(0.15)
@@ -43,7 +99,7 @@ class ChatInputArea extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Ümar tekstikast
+            // 2. Ümar tekstikast koos sisse-ehitatud kirjaklambri nupuga
             Expanded(
               child: TextField(
                 controller: controller,
@@ -54,6 +110,13 @@ class ChatInputArea extends StatelessWidget {
                   fillColor: otherMessageColor,
                   filled: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  
+                  // LAHENDUS: Lisame kirjaklambri ikooni tekstikasti SISSESE (prefixIcon)
+                  prefixIcon: IconButton(
+                    icon: const Icon(Icons.attach_file_rounded, color: Colors.white54),
+                    onPressed: () => _showAttachmentMenu(context),
+                  ),
+
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(26),
                     borderSide: BorderSide.none,
@@ -74,7 +137,7 @@ class ChatInputArea extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Saatmisnupp ringi sees
+            // 3. Saatmisnupp ringi sees
             CircleAvatar(
               backgroundColor: isSecretChat ? secretMessageColor : myMessageColor,
               radius: 24,

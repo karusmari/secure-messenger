@@ -3,24 +3,24 @@ secure-messenger
 > In order to run and hot reload the app either on emulator or device, follow the 
 [instructions](https://docs.flutter.dev/get-started/test-drive?tab=androidstudio#run-the-ap
  p)
-###### Does the app run without crashing?
-###### Does the app contain a `login/signup` page?
-##### Signup as new user, and login to your account.
-###### Can you successfully authenticate?
-###### Does the app have a user profile feature?
-###### Can users create a profile with a profile picture, username, and other information?
-##### Generate a QR code of your profile in the app.
-###### Does it contain information about the user and his profile?
-###### Does the app support biometric authentication for user login?
+###### Does the app run without crashing? YES 
+###### Does the app contain a `login/signup` page? YES 
+##### Signup as new user, and login to your account. 
+###### Can you successfully authenticate? YES
+###### Does the app have a user profile feature? YES 
+###### Can users create a profile with a profile picture, username, and other information? YES
+##### Generate a QR code of your profile in the app. 
+###### Does it contain information about the user and his profile? YES
+###### Does the app support biometric authentication for user login? YES
 ##### Try to enable biometric authentication via either fingerprint or face recognition
 and try to login using one of them.
-###### Was it possible to login using biometric authentication?
+###### Was it possible to login using biometric authentication? YES
 ###### Is there a search feature that allows users to search for other users by username
-or other information?
-###### Can users add contacts by searching for their username or scanning a QR code?
-##### Search for any other user and try to create a chat and send him a message.
-###### Do messages appear in another user's app?
-##### Try sending video, audio, images in the chat.
+or other information? YES
+###### Can users add contacts by searching for their username or scanning a QR code? YES
+##### Search for any other user and try to create a chat and send him a message. 
+###### Do messages appear in another user's app? YES
+##### Try sending video, audio, images in the chat. 
 ###### Does the app support sending text messages, images, and videos?
 ###### Does the other user get all the files correctly?
 ###### Does the app indicate if the message has been read by the recipient? Can you see
