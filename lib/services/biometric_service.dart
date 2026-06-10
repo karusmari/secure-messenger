@@ -6,7 +6,7 @@ import 'package:local_auth_darwin/local_auth_darwin.dart';
 class BiometricService {
   final LocalAuthentication _auth = LocalAuthentication();
 
-  // Kontrolli, kas seade üldse toetab biomeetriat ja kas kasutaja on selle seadistanud
+  // check if device supports biometrics and if any biometric method is enrolled
   Future<bool> isBiometricAvailable() async {
     final bool canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
     final bool canAuthenticate =
@@ -14,14 +14,14 @@ class BiometricService {
     return canAuthenticate;
   }
 
-  // Käivita kontroll (FaceID / Sõrmejälg)
+  // start biometric authentication
   Future<bool> authenticate() async {
     try {
       return await _auth.authenticate(
         localizedReason: 'Please authenticate yourself to access the messages',
         persistAcrossBackgrounding:
-            true, // Hoiab autentimise akna alles, kui äpp läheb taustale
-        biometricOnly: true, // Ei luba paroodi/PIN koodi, ainult biomeetria
+            true, // keeps the authentication active even if the app goes to the background (Android)
+        biometricOnly: true, // only allow biometric authentication, no PIN/pattern fallback
         authMessages: const [
           AndroidAuthMessages(
             signInTitle: 'Biometric Authentication Required',

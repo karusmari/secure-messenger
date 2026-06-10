@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // <--- PUUDU
-import 'package:firebase_auth/firebase_auth.dart'; // <--- PUUDU (et teada, kes on praegune kasutaja)
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; 
 import '../services/chat_service.dart';
 import '../services/contact_service.dart'; 
 import '../screens/user_profile_screen.dart'; 
@@ -9,23 +9,23 @@ import 'qr_scanner.dart'; // Sinu QrScannerWidget
 class QrScanButton extends StatelessWidget {
   final ChatService chatService = ChatService();
   final ContactService contactService = ContactService();
-  final FirebaseAuth _auth = FirebaseAuth.instance; // <--- Lisatud autentimine
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   QrScanButton({super.key});
 
   Future<void> _startScanning(BuildContext context) async {
-    // 1. Avame QR skänneri ekraani ja ootame tulemust (skaneeritud e-maili)
+    // open the QR scanner and wait for the result (the scanned email)
     final String? scannedEmail = await Navigator.push<String>(
       context,
       MaterialPageRoute(builder: (context) => const QrScannerWidget()),
     );
 
-    // Kui kasutaja pani skänneri kinni midagi skaneerimata
+    // in case the user cancels scanning or no email is scanned, we do nothing
     if (scannedEmail == null || scannedEmail.isEmpty) return;
 
     if (!context.mounted) return;
 
-    // 2. Kuvame laadimisringi, kuni andmebaasist kasutajat otsime
+    // circular loading indicator while we process the scanned email and fetch user data
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -33,13 +33,13 @@ class QrScanButton extends StatelessWidget {
     );
 
     try {
-      // 3. Otsime Firestore'ist skaneeritud e-maili järgi kasutajat
+      // finding the user in the database by the scanned email
       final userQuery = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: scannedEmail.trim().toLowerCase())
           .get();
 
-      // Sulgeme laadimisakna (Loading indicator), sest päring sai läbi
+      // closing the loading indicator
       if (!context.mounted) return;
       Navigator.pop(context);
 
@@ -47,7 +47,7 @@ class QrScanButton extends StatelessWidget {
         final targetUserDoc = userQuery.docs.first;
         final String targetUserId = targetUserDoc.id;
 
-        // 4. Kontrollime, kas see kasutaja on juba minu kontaktide hulgas
+        // checking if the scanned user is already in the current user's active chats (already a friend)
         final myUid = _auth.currentUser?.uid;
         bool alreadyFriend = false;
 
@@ -61,7 +61,7 @@ class QrScanButton extends StatelessWidget {
 
         if (!context.mounted) return;
 
-        // 5. Suuname kasutaja uuele profiililehele (UserProfileScreen)
+        // redirecting to the scanned user's profile page, passing the scanned email and friendship status
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -73,15 +73,15 @@ class QrScanButton extends StatelessWidget {
           ),
         );
       } else {
-        // Kui sellise e-mailiga kasutajat andmebaasist ei leitud
+        // in case no user is found with the scanned email, we show a message to the user
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('User with this email was not found.')),
         );
       }
     } catch (e) {
-      // Veatöötlus (nt võrguprobleemid)
+      // in case of any error (network issues, database errors, etc), we close the loading indicator and show an error message
       if (!context.mounted) return;
-      Navigator.pop(context); // Sulgeme laadimisakna, kui see veel lahti on
+      Navigator.pop(context); 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error occurred: $e')),
       );

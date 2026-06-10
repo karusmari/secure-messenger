@@ -6,8 +6,6 @@ class ChatInputArea extends StatelessWidget {
   final VoidCallback onToggleSecret;
   final VoidCallback onSendMessage;
   
-  // LAHENDUS: Lisame callback-funktsioonid meedia saatmiseks, 
-  // et ChatScreen saaks sellega tegeleda
   final Function(String type) onMediaSelected; 
 
   final Color myMessageColor;
@@ -20,13 +18,13 @@ class ChatInputArea extends StatelessWidget {
     required this.isSecretChat,
     required this.onToggleSecret,
     required this.onSendMessage,
-    required this.onMediaSelected, // Kohustuslik parameeter uue nupu jaoks
+    required this.onMediaSelected, 
     required this.myMessageColor,
     required this.otherMessageColor,
     required this.secretMessageColor,
   });
 
-  // Ilus menüü, mis hüppab alt üles, kui vajutatakse kirjaklambrile
+  // attachment menu for selecting media type (image, video, audio)
   void _showAttachmentMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -84,7 +82,7 @@ class ChatInputArea extends StatelessWidget {
         padding: const EdgeInsets.all(12.0),
         child: Row(
           children: [
-            // 1. Luku nupp (Secret chat)
+            // key icon to toggle secret chat mode
             CircleAvatar(
               backgroundColor: isSecretChat
                   ? secretMessageColor.withOpacity(0.15)
@@ -99,7 +97,7 @@ class ChatInputArea extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // 2. Ümar tekstikast koos sisse-ehitatud kirjaklambri nupuga
+            // text input field with attachment button inside
             Expanded(
               child: TextField(
                 controller: controller,
@@ -111,7 +109,7 @@ class ChatInputArea extends StatelessWidget {
                   filled: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   
-                  // LAHENDUS: Lisame kirjaklambri ikooni tekstikasti SISSESE (prefixIcon)
+                  // attachment icon inside the text field
                   prefixIcon: IconButton(
                     icon: const Icon(Icons.attach_file_rounded, color: Colors.white54),
                     onPressed: () => _showAttachmentMenu(context),
@@ -137,7 +135,7 @@ class ChatInputArea extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // 3. Saatmisnupp ringi sees
+            // Send button
             CircleAvatar(
               backgroundColor: isSecretChat ? secretMessageColor : myMessageColor,
               radius: 24,

@@ -5,7 +5,7 @@ import '../services/biometric_service.dart';
 import '../screens/home_screen.dart';
 import '../screens/login_screen.dart';
 
-// 1. KONTROLLIME, KAS KASUTAJA ON LOGITUD SISSE
+// check if user is logged in or not, and show the appropriate screen
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -32,7 +32,7 @@ class AuthWrapper extends StatelessWidget {
   }
 }
 
-// 2. KUI ON LOGITUD, KONTROLLIME SÕRMEJÄLGE / NÄOTUVASTUST
+//in case of log in we check the biometrics 
 class BiometricCheckWrapper extends StatefulWidget {
   const BiometricCheckWrapper({super.key});
 

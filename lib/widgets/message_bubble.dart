@@ -15,18 +15,16 @@ class MessageBubble extends StatelessWidget {
   final String formattedTime;
   final bool isEditingThisMessage;
 
-  // Funktsioonid, mida käivitatakse ema-vidinas (ChatScreen)
   final Function(String id, String text, bool secret) onStartEditing;
   final Function(BuildContext ctx, String id, String text, bool secret)
   onShowOptions;
   final VoidCallback onCancelEditing;
   final VoidCallback onSaveEditedMessage;
 
-  // Kontrollerid muutmiseks
+  // controllers and focus nodes for editing messages
   final TextEditingController editingController;
   final FocusNode editingFocusNode;
 
-  // Värvid
   final Color myMessageColor;
   final Color otherMessageColor;
   final Color secretMessageColor;
@@ -54,19 +52,19 @@ class MessageBubble extends StatelessWidget {
     required this.darkBgColor,
   });
 
-  // UUS ABIFUNKTSIOON: See otsustab, mida mullikese sees kuvada
+  // what to display in the message bubble based on the message type
   Widget _buildMessageContent() {
-    String messageType = data['messageType'] ?? data['type'] ?? 'text'; // Kontrollib mõlemat võimalikku välja
+    String messageType = data['messageType'] ?? data['type'] ?? 'text'; 
     bool msgIsSecret = data['isSecret'] ?? false;
 
-    // Logime tüübi kontrolliks konsooli
+    // debug to check message type and ID when rendering bubbles
     debugPrint("Bubble ID: $messageId, Type: $messageType");
 
-    // 1. KONTROLL: Pildisõnum
+    // image message
     if (messageType == 'image') {
       String rawImageBase64 = data['message'] ?? '';
 
-      // Kui see oli Secret Chat pilt, peame selle esmalt dekrüpteerima
+      // if it was secret, try to decrypt it before displaying
       if (msgIsSecret && rawImageBase64.isNotEmpty) {
         try {
           rawImageBase64 = EncryptionService.decryptText(rawImageBase64);
@@ -82,7 +80,7 @@ class MessageBubble extends StatelessWidget {
         }
       }
 
-      // Kui allikas on millegipärast tühi
+      // in case of empty or invalid image data, show a placeholder instead of crashing
       if (rawImageBase64.isEmpty) {
         return const Padding(
           padding: EdgeInsets.all(8.0),
@@ -121,7 +119,7 @@ class MessageBubble extends StatelessWidget {
       );
     } 
     
-    // 2. KONTROLL: Helisõnum
+    // audio message
     else if (messageType == 'audio') {
       return AudioBubble(
         data: data,
@@ -130,17 +128,14 @@ class MessageBubble extends StatelessWidget {
       );
     }
     
-    // 3. KONTROLL: Videosõnum
+    // video message
     else if (messageType == 'video') {
-      // Kutsume välja uue puhta vidina teises failis!
       return VideoBubble(
         data: data,
         msgIsSecret: msgIsSecret,
       );
     }
 
-    // 4. LÕPPHINDAMINE: Kui tüüp on 'text' või midagi tundmatut, tagastame alati tekstividina.
-    // See rida peab asuma täiesti viimastest if-idest VÄLJASPOOL, tagades et funktsioon tagastab ALATI widgeti.
     return Text(
       messageText,
       style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.2),
@@ -221,12 +216,12 @@ class MessageBubble extends StatelessWidget {
             children: [
               if (!isEditingThisMessage)
                 GestureDetector(
-                  // PARANDUS: Lubame tekstimuutmist lühikese vajutusega AINULT siis, kui tegu on tekstisõnumiga
+                  // letting the user edit only their own text messages, not images or media
                   onTap: isMe && messageType == 'text'
                       ? () =>
                             onStartEditing(messageId, messageText, msgIsSecret)
                       : null,
-                  // Pika vajutuse valikud (kustutamine jne) töötavad ikka kõigil
+                  // long press to show options (edit/delete) only for own messages
                   onLongPress: isMe
                       ? () => onShowOptions(
                           context,
@@ -239,7 +234,7 @@ class MessageBubble extends StatelessWidget {
                     padding: messageType == 'image'
                         ? const EdgeInsets.all(
                             4,
-                          ) // Pildi ümber teeme väiksema ääre, et pilt täidaks mulli paremini
+                          ) 
                         : const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 12,
@@ -265,7 +260,6 @@ class MessageBubble extends StatelessWidget {
                         ),
                       ],
                     ),
-                    // KUTSUTAKSE UUT FUNKTSIOONI TEKSTI ASYMEL
                     child: _buildMessageContent(),
                   ),
                 )

@@ -7,7 +7,7 @@ class ProfileService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Toome kõik kasutajad (Et näidata neid pealehel nimekirjana)
+  // getting all the users in real-time (for the search screen)
   Stream<List<Map<String, dynamic>>> getUsersStream() {
     return _db.collection('users').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
@@ -18,7 +18,7 @@ class ProfileService {
     });
   }
 
-  // Muuda pilt tekstiks ja salvesta Firestore'i
+  // change the profile picture of the user (uploading to Firestore as base64 string)
   Future<void> uploadAndChangeProfilePicture(File imageFile) async {
     final String currentUserId = _auth.currentUser!.uid;
     try {
@@ -33,7 +33,7 @@ class ProfileService {
     }
   }
 
-  // Uuenda kasutaja profiili (Kasutajanimi ja pilt)
+  // update the username and profile picture URL in Firestore
   Future<void> updateUserProfile(String username, String profilePicUrl) async {
     final String currentUserId = _auth.currentUser!.uid;
     await _db.collection('users').doc(currentUserId).update({

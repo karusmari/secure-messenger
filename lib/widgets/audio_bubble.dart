@@ -35,7 +35,7 @@ class _AudioBubbleState extends State<AudioBubble> {
 
     _prepareAudioData();
 
-    // Kuulame heli seisundite muutusi
+    // listen to audio player state changes 
     _audioPlayer.onPlayerStateChanged.listen((state) {
       if (mounted) {
         setState(() {
@@ -63,13 +63,14 @@ class _AudioBubbleState extends State<AudioBubble> {
     _audioPlayer.onPlayerComplete.listen((event) {
       if (mounted) {
         setState(() {
-          _position = Duration.zero; // Toob täpi algusesse tagasi
-          _isPlaying = false;        // Muudab nupu uuesti Play ikooniks
+          _position = Duration.zero; 
+          _isPlaying = false;        
         });
       }
     });
   }
-
+  
+  // in case of secret message, we need to decrypt the audio data before playing
   void _prepareAudioData() {
     String rawAudioBase64 = widget.data['message'] ?? '';
     
@@ -84,23 +85,22 @@ class _AudioBubbleState extends State<AudioBubble> {
     }
   }
 
+ // play or pause the audio when the button is pressed
  Future<void> _playPauseAudio() async {
     if (_isPlaying) {
-      // Kui mängib, paneme pausi peale
+      // in case it plays, we pause it
       await _audioPlayer.pause();
     } else {
       if (_finalAudioBase64.isEmpty) return;
 
       try {
-        // LAHENDUS: Söödame baidid pleierile ALATI uuesti ette, 
-        // kui alustatakse mängimist nullist (asukoht on alguses).
         if (_position == Duration.zero || !_isInitialized) {
           final Uint8List audioBytes = base64Decode(_finalAudioBase64);
           await _audioPlayer.setSource(BytesSource(audioBytes));
           _isInitialized = true;
         }
         
-        // Käivitame heli
+        // start the audio
         await _audioPlayer.resume();
       } catch (e) {
         debugPrint("Error playing audio: $e");
@@ -121,7 +121,7 @@ class _AudioBubbleState extends State<AudioBubble> {
       width: 220,
       child: Row(
         children: [
-          // Play/Pause nupp
+          // Play/Pause button
           IconButton(
             icon: Icon(
               _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
@@ -130,7 +130,7 @@ class _AudioBubbleState extends State<AudioBubble> {
             ),
             onPressed: _playPauseAudio,
           ),
-          // Progressiriba ja aeg
+          // progress bar and duration
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

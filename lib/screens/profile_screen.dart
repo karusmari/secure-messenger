@@ -45,20 +45,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 📸 Valime pildi ja muudame selle tekstiks
+  // Picking an image
   Future<void> _pickAndUploadImage() async {
     final ImagePicker picker = ImagePicker();
     
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 30, // Pakime tugevalt kokku, et andmebaasi tekst poleks liiga pikk
+      imageQuality: 30, 
     );
 
     if (image != null) {
       setState(() => _isLoading = true);
       try {
         await _profileService.uploadAndChangeProfilePicture(File(image.path));
-        _loadUserData(); // Värskendame ekraani
+        _loadUserData(); 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile picture updated!'), backgroundColor: Colors.green),
         );
@@ -103,7 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // 👤 PROFIILIPILT
+                    // profile picture 
                     GestureDetector(
                       onTap: _pickAndUploadImage,
                       child: Stack(
@@ -112,11 +112,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           CircleAvatar(
                             radius: 60,
                             backgroundColor: Colors.grey[800],
-                            // Kui andmebaasis on Base64 tekst olemas, dekodeerime selle pildiks
+                            // in case the user has a profile picture, we decode it from base64 and display it, otherwise we show a default icon
                             backgroundImage: _profilePicBase64.isNotEmpty
                                 ? MemoryImage(base64Decode(_profilePicBase64))
-                                : null,
-                            child: _profilePicBase64.isEmpty
+                                : null, 
+                            child: _profilePicBase64.isEmpty // otherwise we show the default icon
                                 ? const Icon(Icons.person, size: 60, color: Colors.grey)
                                 : null,
                           ),
@@ -149,17 +149,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const Text('Let a friend scan this code to start a secure chat with you.', 
                                   textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
                                 const SizedBox(height: 20),
-                                // Genereerime QR koodi sisse kasutaja e-maili
+                                // Generating a QR code from the user's email
                                 Container(
                                   color: Colors.white,
                                   padding: const EdgeInsets.all(10),
-                                  width: 220, // Fikseeritud laius aitab emulaatoril suurust arvutada
-                                  height: 220, // Fikseeritud kõrgus
+                                  width: 220, 
+                                  height: 220, 
                                   child: QrImageView(
                                     data: qrData,
                                     version: QrVersions.auto,
                                     size: 200.0,
-                                    // 🎨 EMULAATORI GRAAFIKA PARANDUS: Sunnime ruudud mustaks
+                                    // Creating black and white QR code so the emulator can create it easily
                                     eyeStyle: const QrEyeStyle(
                                       eyeShape: QrEyeShape.square,
                                       color: Colors.black,
@@ -168,7 +168,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       dataModuleShape: QrDataModuleShape.square,
                                       color: Colors.black,
                                     ),
-                                    // Kui tekib viga renderdamisel, kuvatakse teksti kujul veateade
                                     errorStateBuilder: (cxt, err) {
                                       return Center(
                                         child: Text(
@@ -197,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 20),
 
-                    // 📝 KASUTAJANIMI
+                    // Username input field
                     TextField(
                       controller: _usernameController,
                       decoration: InputDecoration(
@@ -213,7 +212,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // 💾 SALVESTAMISE NUPP
+                    // Save for the profile changes
                     SizedBox(
                       width: double.infinity,
                       height: 50,

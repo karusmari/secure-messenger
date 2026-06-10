@@ -19,10 +19,9 @@ class VideoBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     String rawVideoBase64 = data['message'] ?? '';
 
-    // Kui on Secret Chat, dekrüpteerime video Base64 koodi enne esitamist
+    // in case of secret message, we try to decrypt the video data before playing
     if (msgIsSecret && rawVideoBase64.isNotEmpty) {
       try {
-        // Kuna EncryptionService on sul eraldi klassis, impordi see vajadusel faili algusesse
         rawVideoBase64 = EncryptionService.decryptText(rawVideoBase64); 
       } catch (e) {
         debugPrint("Error decrypting video: $e");
@@ -44,7 +43,6 @@ class VideoBubble extends StatelessWidget {
   }
 }
 
-// Hoiame pleieri privaatse klassina (alalkriipsuga _), sest keegi väljastpoolt seda otse ei kasuta
 class _Base64VideoPlayer extends StatefulWidget {
   final String base64String;
 

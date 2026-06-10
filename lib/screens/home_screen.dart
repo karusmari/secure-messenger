@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const Divider(height: 10, thickness: 0.5),
 
-          // Kasutajate reaalaegne nimekiri
+          // user list
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: profileService.getUsersStream(),

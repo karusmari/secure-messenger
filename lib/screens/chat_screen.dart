@@ -1,13 +1,15 @@
 import 'dart:convert';
-import 'dart:io'; // <--- VAJALIK: Lisatud failide käsitsemiseks
+import 'dart:io'; 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:image_picker/image_picker.dart'; // <--- VAJALIK: Lisatud piltide/videote jaoks
-import 'package:file_picker/file_picker.dart'; // <--- VAJALIK: Lisatud audio jaoks
+import 'package:image_picker/image_picker.dart'; 
+import 'package:file_picker/file_picker.dart'; 
 import '../services/chat_service.dart';
 import '../services/encryption_service.dart';
 import 'user_profile_screen.dart';
+import '../widgets/chat_dialogs.dart';
+import '../utils/date_formatter.dart';
 
 import '../widgets/chat_input_area.dart';
 import '../widgets/message_bubble.dart';
@@ -119,9 +121,12 @@ class _ChatScreenState extends State<ChatScreen> {
     _editingMessageController.clear();
   }
 
+  // saving the edited message to Firestore
   Future<void> _saveEditedMessage() async {
-    if (_editingMessageId == null || _editingMessageController.text.isEmpty)
+    if (_editingMessageId == null || _editingMessageController.text.isEmpty) {
       return;
+    }
+
     await _chatService.editMessage(
       widget.receiverId,
       _editingMessageId!,
@@ -131,6 +136,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _cancelEditing();
   }
 
+  // marking the messages as read when they become visible in the chat
   void _markVisibleMessagesAsRead(QuerySnapshot snapshot) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -140,30 +146,13 @@ class _ChatScreenState extends State<ChatScreen> {
             data['receiverId'] == _auth.currentUser!.uid &&
             data['isRead'] != true;
       });
-      if (hasUnreadIncomingMessages)
+      if (hasUnreadIncomingMessages) {
         _chatService.markMessagesAsRead(widget.receiverId);
+      }
     });
   }
 
-  String _formatTimestamp(Timestamp? timestamp) {
-    if (timestamp == null) return "";
-    DateTime dateTime = timestamp.toDate();
-    DateTime now = DateTime.now();
-    String hour = dateTime.hour.toString().padLeft(2, '0');
-    String minute = dateTime.minute.toString().padLeft(2, '0');
-    String timeStr = "$hour:$minute";
-
-    if (dateTime.year == now.year &&
-        dateTime.month == now.month &&
-        dateTime.day == now.day) {
-      return timeStr;
-    } else {
-      return "${dateTime.day.toString().padLeft(2, '0')}.${dateTime.month.toString().padLeft(2, '0')} $timeStr";
-    }
-  }
-
-  // Funktsioon meedia valimiseks ja saatmiseks
-  // Funktsioon meedia valimiseks ja saatmiseks ilma Firebase Storage'ita (Base64)
+  // function to handle media selection (image, video, audio) and send it as a message after converting to Base64 string
   Future<void> _handleMediaSelection(String type) async {
     try {
       File? file;
@@ -180,13 +169,13 @@ class _ChatScreenState extends State<ChatScreen> {
         XFile? pickedFile;
 
         if (type == 'image') {
-          // TIHENDAMINE: Piirame pildi mõõtmeid ja kvaliteeti, et Base64 string mahuks Firestore'i 1MB sisse
+          // restricting the image size to max 800x800 and quality to 70% to avoid very long Base64 strings that can cause Firestore issues
           pickedFile = await picker.pickImage(
             source: ImageSource.gallery,
-            maxWidth: 800, // Piirab pildi laiust maksimaalselt 800px peale
-            maxHeight: 800, // Piirab kõrgust
+            maxWidth: 800, 
+            maxHeight: 800, 
             imageQuality:
-                70, // Pakib pildi kvaliteedi 70% peale (maht väheneb mitu korda, pilt jääb ilus)
+                70, // packs the image to 70%
           );
         } else if (type == 'video') {
           pickedFile = await picker.pickVideo(source: ImageSource.gallery);
@@ -197,7 +186,8 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
 
-      // Kui kasutaja valis faili edukalt, töötleme seda edasi
+      // after a file is picked (doesn't matter if it's image, video or audio), we send it using the same method in ChatService, 
+      // which converts it to Base64 and saves to Firestore
       if (file != null) {
         await _chatService.sendMediaMessage(
           widget.receiverId,
@@ -220,24 +210,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // confirmation dialog before deleting a message
   void _confirmDeleteMessage(String messageId) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete message'),
-        content: const Text('Are you sure you want to delete this message?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
+    final bool? confirmed = await ChatDialogs.showDeleteConfirmation(context);
 
     if (confirmed == true) {
       try {
@@ -251,75 +226,30 @@ class _ChatScreenState extends State<ChatScreen> {
           );
         }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Failed to delete message: $e')),
           );
+        }
       }
     }
   }
 
+  // bottom sheet with options to edit or delete a message
   void _showOptionsBottomSheet(
     BuildContext context,
     String messageId,
     String messageText,
     bool isSecret,
   ) {
-    showModalBottomSheet(
+    ChatDialogs.showOptionsBottomSheet(
       context: context,
+      messageId: messageId,
+      messageText: messageText,
+      isSecret: isSecret,
       backgroundColor: _otherMessageColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 8),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_rounded, color: Colors.white70),
-                title: const Text(
-                  'Edit Message',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _startEditingMessage(messageId, messageText, isSecret);
-                },
-              ),
-              Divider(color: Colors.white.withOpacity(0.05), height: 1),
-              ListTile(
-                leading: const Icon(
-                  Icons.delete_forever_rounded,
-                  color: Colors.redAccent,
-                ),
-                title: const Text(
-                  'Delete Message',
-                  style: TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _confirmDeleteMessage(messageId);
-                },
-              ),
-            ],
-          ),
-        );
-      },
+      onEditTap: _startEditingMessage,
+      onDeleteTap: _confirmDeleteMessage,
     );
   }
 
@@ -414,7 +344,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Container(height: 1, color: Colors.white.withOpacity(0.05)),
 
-          // Sõnumite loend
+          // list of messages
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _chatService.getMessages(
@@ -422,17 +352,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 widget.receiverId,
               ),
               builder: (context, snapshot) {
-                if (snapshot.hasError)
+                if (snapshot.hasError) {
                   return const Center(
                     child: Text(
                       'Error loading messages.',
                       style: TextStyle(color: Colors.white54),
                     ),
                   );
-                if (snapshot.connectionState == ConnectionState.waiting)
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(color: _myMessageColor),
                   );
+                }
+
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Center(
                     child: Text(
@@ -463,7 +397,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     String messageText = data['message'] ?? '';
                     bool msgIsSecret = data['isSecret'] ?? false;
 
-                    // Dekrüpteerimine (töötab ainult Secret Chatis)
+                    // Decrypting (only a secret message)
                     if (msgIsSecret && messageText.isNotEmpty) {
                       try {
                         messageText = EncryptionService.decryptText(
@@ -481,7 +415,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       isMe: isMe,
                       receiverId: widget.receiverId,
                       receiverEmail: widget.receiverEmail,
-                      formattedTime: _formatTimestamp(data['timestamp']),
+                      formattedTime: DateFormatter.formatTimestamp(data['timestamp']),
                       isEditingThisMessage:
                           isMe &&
                           _isEditingMessage &&
@@ -503,7 +437,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Trükkimise indikaator
+          // Typing indicator
           StreamBuilder<bool>(
             stream: _chatService.getTypingStatusStream(
               _chatRoomId,
@@ -515,7 +449,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Sisestusala koos parandatud meedia funktsiooniga
+          // chat input area with send button, secret chat toggle, and media attachment options
           ChatInputArea(
             controller: _messageController,
             isSecretChat: _isSecretChat,
@@ -551,7 +485,7 @@ class _ChatScreenState extends State<ChatScreen> {
             onSendMessage: _sendMessage,
             onMediaSelected: (type) => _handleMediaSelection(
               type,
-            ), // <--- SEOTUD: Nüüd kutsub õiget funktsiooni välja
+            ),
             myMessageColor: _myMessageColor,
             otherMessageColor: _otherMessageColor,
             secretMessageColor: _secretMessageColor,

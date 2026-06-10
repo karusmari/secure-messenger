@@ -20,11 +20,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   String _errorMessage = '';
 
-  // 🌟 UUED TUMEDA REŽIIMI VÄRVID
-  final Color _primaryColor = const Color(0xFF6366F1);     // Neoon-indigo aktsendiks
-  final Color _backgroundColor = const Color(0xFF0F172A); // Sügav tume sinakas-must (Slate 900)
-  final Color _cardColor = const Color(0xFF1E293B);       // Veidi heledam tume sisestusväljadele (Slate 800)
-  final Color _textColor = const Color(0xFFF8FAFC);       // Peaaegu valge tekst (Slate 50)
+  final Color _primaryColor = const Color(0xFF6366F1);     
+  final Color _backgroundColor = const Color(0xFF0F172A); 
+  final Color _cardColor = const Color(0xFF1E293B);       
+  final Color _textColor = const Color(0xFFF8FAFC); 
 
   void _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
@@ -62,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _backgroundColor, // 🌟 Tume taust
+      backgroundColor: _backgroundColor, 
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -72,7 +71,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Ilus helendav ikoonikonteiner tumedal taustal
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -87,7 +85,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // Pealkiri helenda valge tekstiga
                   Text(
                     _isLogin ? 'Welcome Back' : 'Create Account',
                     style: TextStyle(
@@ -105,11 +102,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // 🌟 UUENDUS: Tumedad sisestusväljad, mis sulanduvad taustaga
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: TextStyle(color: _textColor), // Kasutaja kirjutatud tekst on valge
+                    style: TextStyle(color: _textColor), 
                     decoration: InputDecoration(
                       hintText: 'Email address',
                       hintStyle: TextStyle(color: Colors.grey[500]),
@@ -127,14 +123,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: _primaryColor, width: 2), // Helendab kui vajutad peale
+                        borderSide: BorderSide(color: _primaryColor, width: 2), 
                       ),
                     ),
                     validator: (val) => val!.isEmpty ? 'Please enter your email' : null,
                   ),
                   const SizedBox(height: 16),
 
-                  // Tume parooliväli
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -171,7 +166,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     validator: (val) => val!.length < 6 ? 'Password must be at least 6 characters long' : null,
                   ),
                   
-                  // Tumedas režiimis kontrastne veateade
                   if (_errorMessage.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
@@ -197,7 +191,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                   const SizedBox(height: 28),
 
-                  // Nupp, mis hüppab tumedalt taustalt hästi esile
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -224,7 +217,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Alumine link režiimi vahetamiseks
                   TextButton(
                     onPressed: () {
                       setState(() {

@@ -35,9 +35,9 @@ class MyApp extends StatelessWidget {
         
         // Overall color scheme for the app, used for various elements and text
         colorScheme: const ColorScheme.dark(
-          surface:  Color(0xFF3C3D37),      // background for messages and tiles
-          primary: Color(0xFFECDFCC),      // Main text color 
-          secondary: Color(0xFF697565),    // Secondary text color (e.g., timestamps, read receipts)
+          surface:  Color(0xFF3C3D37),      
+          primary: Color(0xFFECDFCC),      
+          secondary: Color(0xFF697565),    
         ),
 
         textTheme: const TextTheme(

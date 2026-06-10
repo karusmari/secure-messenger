@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/contact_service.dart'; // Sinu uus tükeldatud teenus
+import '../services/contact_service.dart'; 
 import 'chat_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String userId;
   final String userEmail;
-  final bool isAlreadyFriend; // Määrab, kas näitame "Lisa kontaktiks" nuppu
+  final bool isAlreadyFriend; 
 
   const UserProfileScreen({
     super.key,
@@ -27,16 +27,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   void _addAndStartChat() async {
     setState(() => _isLoading = true);
     
-    // 1. Lisame vestluse andmebaasis (chatsWith massiivi)
+    // adding chat into database
     String result = await _contactService.addChatByEmail(widget.userEmail);
     
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    // 2. Teavitame kasutajat edukast lisamisest
+    // letting the user know about the process result (success or failure)
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
 
-    // 3. Suuname ta otse uude chatti ja eemaldame profiilivaate taustalt
+    // navigating the user to the chat screen if the chat was created successfully
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -69,7 +69,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
           final userData = snapshot.data!.data() as Map<String, dynamic>;
           String username = userData['username'] ?? 'No username set';
-          String realEmail = userData['email'] ?? 'No email found'; // Fallback to the email we have if username is missing
+          String realEmail = userData['email'] ?? 'No email found'; 
           String? base64Image = userData['profilePicture'];
           String userLetter = widget.userEmail.substring(0, 1).toUpperCase();
 
@@ -79,7 +79,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 1. PROFIILIPILT
+                  // profile picture 
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.grey[800],
@@ -92,25 +92,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 2. KASUTAJANIMI
+                  // username
                   Text(
                     username,
                     style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
 
-                  // 3. E-MAIL
+                  // email
                   Text(
                     realEmail,
                     style: const TextStyle(color: Colors.white54, fontSize: 16),
                   ),
                   const SizedBox(height: 40),
 
-                  // 4. DÜNAAMILINE NUPP VASTAVALT OLUKORRALE
+                  // dynamic button: if we are not friends yet, we show the "Add to Contacts & Chat" button, 
+                  // otherwise we show the "Back to Chat" button
                   if (_isLoading)
                     const CircularProgressIndicator()
                   else if (!widget.isAlreadyFriend)
-                    // Kui me pole veel sõbrad (tuli läbi QR koodi skaneerimise)
+                    // in case we are not friends yet
                     ElevatedButton.icon(
                       onPressed: _addAndStartChat,
                       icon: const Icon(Icons.person_add, color: Colors.white),
@@ -122,9 +123,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ),
                     )
                   else
-                    // Kui oleme juba sõbrad ja ta lihtsalt vaatab profiili vestluse seest
+                    // in case we are already friends, we just show a button to go back to the chat
                     OutlinedButton.icon(
-                      onPressed: () => Navigator.pop(context), // Läheb lihtsalt vestlusesse tagasi
+                      onPressed: () => Navigator.pop(context), 
                       icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
                       label: const Text("Back to Chat", style: TextStyle(color: Colors.white)),
                       style: OutlinedButton.styleFrom(
