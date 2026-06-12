@@ -32,7 +32,7 @@ class AuthWrapper extends StatelessWidget {
   }
 }
 
-//in case of log in we check the biometrics 
+//in case of log in we check the biometrics
 class BiometricCheckWrapper extends StatefulWidget {
   const BiometricCheckWrapper({super.key});
 
@@ -44,25 +44,52 @@ class _BiometricCheckWrapperState extends State<BiometricCheckWrapper> {
   final BiometricService _biometricService = BiometricService();
   bool _isAuthenticated = false;
   bool _hasChecked = false;
+  bool _isCheckingNow = false;
 
   @override
   void initState() {
     super.initState();
-    _checkBiometrics();
+    _checkBiometrics(autoStart: true);
   }
 
-  void _checkBiometrics() async {
+  @override
+  void reassemble() {
+    super.reassemble();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isAuthenticated = false;
+      _hasChecked = false;
+      _isCheckingNow = false;
+    });
+
+    _checkBiometrics(autoStart: false);
+  }
+
+  void _checkBiometrics({bool autoStart = false}) async {
+    if (_isCheckingNow) return;
+
+    setState(() {
+      _isCheckingNow = true;
+    });
+
     bool available = await _biometricService.isBiometricAvailable();
     if (available) {
+
       bool success = await _biometricService.authenticate();
       setState(() {
         _isAuthenticated = success;
         _hasChecked = true;
+        _isCheckingNow = false;
       });
     } else {
       setState(() {
-        _isAuthenticated = true;
+        _isAuthenticated = false;
         _hasChecked = true;
+        _isCheckingNow = false;
       });
     }
   }
@@ -70,9 +97,7 @@ class _BiometricCheckWrapperState extends State<BiometricCheckWrapper> {
   @override
   Widget build(BuildContext context) {
     if (!_hasChecked) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_isAuthenticated) {
@@ -84,17 +109,36 @@ class _BiometricCheckWrapperState extends State<BiometricCheckWrapper> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.lock, size: 64, color: Colors.red),
+            const Icon(Icons.lock_outline_rounded, size: 80, color: Colors.blueGrey),
             const SizedBox(height: 16),
-            const Text('App is locked', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _checkBiometrics,
-              child: const Text('Try Again'),
+            const Text(
+              'Secure Messenger is Locked',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'Authentication failed or cancelled.',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+            const SizedBox(height: 32),
+
+            ElevatedButton.icon(
+              onPressed: () => _checkBiometrics(autoStart: false),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                textStyle: const TextStyle(fontSize: 16),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             TextButton(
               onPressed: () => AuthService().signOut(),
-              child: const Text('Sign in with different account', style: TextStyle(color: Colors.grey)),
+              child: const Text(
+                'Sign in with different account',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
           ],
         ),

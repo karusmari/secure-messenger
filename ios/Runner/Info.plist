@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSFaceIDUsageDescription</key>
-	<string>This app uses Face ID to protect your messages and ensure only you can access them.</
+	<string>This app uses biometric authentication (Face ID / Touch ID) to protect your messages and ensure only you can access them.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

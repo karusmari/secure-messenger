@@ -31,8 +31,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final TextEditingController _editingMessageController =
-      TextEditingController();
+  final TextEditingController _editingMessageController = TextEditingController();
   final FocusNode _editingMessageFocusNode = FocusNode();
   final ChatService _chatService = ChatService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -61,10 +60,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatService.clearUnreadCount(widget.receiverId);
 
     _messageController.addListener(() {
-      if (_messageController.text.isNotEmpty && !_isTyping) {
+      if (_messageController.text.isNotEmpty && !_isTyping) { // when user starts typing
         setState(() => _isTyping = true);
         _chatService.setTypingStatus(widget.receiverId, true);
-      } else if (_messageController.text.isEmpty && _isTyping) {
+      } else if (_messageController.text.isEmpty && _isTyping) { // when user deletes all text or sends the message
         setState(() => _isTyping = false);
         _chatService.setTypingStatus(widget.receiverId, false);
       }
@@ -72,7 +71,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _sendMessage() async {
-    if (_messageController.text.isNotEmpty) {
+    if (_messageController.text.isNotEmpty) { // only send if there's text in the input
       await _chatService.sendMessage(
         widget.receiverId,
         _messageController.text,

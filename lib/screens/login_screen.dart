@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       hintStyle: TextStyle(color: Colors.grey[500]),
                       prefixIcon: Icon(Icons.mail_outline_rounded, color: Colors.grey[400]),
                       filled: true,
-                      fillColor: _cardColor, // 🌟 Kast on tumedam hall
+                      fillColor: _cardColor, 
                       contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),

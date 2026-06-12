@@ -53,18 +53,22 @@ class ChatDialogs {
                   ),
                 ),
               ),
-              ListTile(
-                leading: const Icon(Icons.edit_rounded, color: Colors.white70),
-                title: const Text(
-                  'Edit Message',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+
+              if (messageText.length < 1000) ...[
+                ListTile(
+                  leading: const Icon(Icons.edit_rounded, color: Colors.white70),
+                  title: const Text(
+                    'Edit Message',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onEditTap(messageId, messageText, isSecret);
+                  },
                 ),
-                onTap: () {
-                  Navigator.pop(context);
-                  onEditTap(messageId, messageText, isSecret);
-                },
-              ),
-              Divider(color: Colors.white.withOpacity(0.05), height: 1),
+                Divider(color: Colors.white.withOpacity(0.05), height: 1),
+              ],
+
               ListTile(
                 leading: const Icon(
                   Icons.delete_forever_rounded,
