@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/chat_service.dart';
 import '../services/contact_service.dart'; 
 import '../screens/user_profile_screen.dart'; 
-import 'qr_scanner.dart'; // Sinu QrScannerWidget
+import 'qr_scanner.dart';
 
 class QrScanButton extends StatelessWidget {
   final ChatService chatService = ChatService();
@@ -13,55 +13,42 @@ class QrScanButton extends StatelessWidget {
 
   QrScanButton({super.key});
 
+  // Orchestrates the scanning flow and routing execution
   Future<void> _startScanning(BuildContext context) async {
-    // open the QR scanner and wait for the result (the scanned email)
+    // Open native camera interface via QR Scanner widget and await the string payload
     final String? scannedEmail = await Navigator.push<String>(
       context,
       MaterialPageRoute(builder: (context) => const QrScannerWidget()),
     );
 
-    // in case the user cancels scanning or no email is scanned, we do nothing
     if (scannedEmail == null || scannedEmail.isEmpty) return;
-
     if (!context.mounted) return;
 
-    // circular loading indicator while we process the scanned email and fetch user data
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+    // Display a blocking global loading spinner during the network request lifecycle
+    _showLoadingDialog(context);
 
     try {
-      // finding the user in the database by the scanned email
+      final sanitizedEmail = scannedEmail.trim().toLowerCase();
+      
+      // Query the Cloud Firestore collection for a user tracking record matching the scanned email
       final userQuery = await FirebaseFirestore.instance
           .collection('users')
-          .where('email', isEqualTo: scannedEmail.trim().toLowerCase())
+          .where('email', isEqualTo: sanitizedEmail)
           .get();
 
-      // closing the loading indicator
       if (!context.mounted) return;
-      Navigator.pop(context);
+      Navigator.pop(context); // Dismiss the loading spinner safely
 
       if (userQuery.docs.isNotEmpty) {
         final targetUserDoc = userQuery.docs.first;
         final String targetUserId = targetUserDoc.id;
 
-        // checking if the scanned user is already in the current user's active chats (already a friend)
-        final myUid = _auth.currentUser?.uid;
-        bool alreadyFriend = false;
-
-        if (myUid != null) {
-          final myDoc = await FirebaseFirestore.instance.collection('users').doc(myUid).get();
-          if (myDoc.exists) {
-            final List<dynamic> myActiveChats = myDoc.data()?['chatsWith'] ?? [];
-            alreadyFriend = myActiveChats.contains(targetUserId);
-          }
-        }
+        // 4. Evaluate the user's relational friendship status before rendering profile
+        final bool alreadyFriend = await _checkIfAlreadyFriend(targetUserId);
 
         if (!context.mounted) return;
 
-        // redirecting to the scanned user's profile page, passing the scanned email and friendship status
+        // 5. Navigate cleanly to the target profile view, supplying relationship parameters
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -73,25 +60,51 @@ class QrScanButton extends StatelessWidget {
           ),
         );
       } else {
-        // in case no user is found with the scanned email, we show a message to the user
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User with this email was not found.')),
-        );
+        _showSnackBar(context, 'User with this email was not found.');
       }
     } catch (e) {
-      // in case of any error (network issues, database errors, etc), we close the loading indicator and show an error message
+      // Intercept execution breaks, clear loading UI contexts, and dispatch alerts
       if (!context.mounted) return;
-      Navigator.pop(context); 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error occurred: $e')),
-      );
+      Navigator.pop(context); // Safe escape: ensure spinner is dismissed on system crash
+      _showSnackBar(context, 'An error occurred during verification: $e');
     }
+  }
+
+  // ARCHITECTURAL HELPERS
+
+  // Displays a centralized operational progress barrier
+  void _showLoadingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  // Unified toast system interface for quick context error dispatches
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  // Queries current user context metadata parameters to verify existing active chats
+  Future<bool> _checkIfAlreadyFriend(String targetUserId) async {
+    final myUid = _auth.currentUser?.uid;
+    if (myUid == null) return false;
+
+    final myDoc = await FirebaseFirestore.instance.collection('users').doc(myUid).get();
+    if (!myDoc.exists) return false;
+
+    final List<dynamic> myActiveChats = myDoc.data()?['chatsWith'] ?? [];
+    return myActiveChats.contains(targetUserId);
   }
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.qr_code_scanner),
+      tooltip: 'Scan Contact QR Code',
       onPressed: () => _startScanning(context),
     );
   }

@@ -57,21 +57,24 @@ class _ChatScreenState extends State<ChatScreen> {
     ids.sort();
     _chatRoomId = ids.join('_');
 
+    // Clear unread message count when entering the chat
     _chatService.clearUnreadCount(widget.receiverId);
 
+    // Listener to update typing status in real-time
     _messageController.addListener(() {
-      if (_messageController.text.isNotEmpty && !_isTyping) { // when user starts typing
+      if (_messageController.text.isNotEmpty && !_isTyping) { // User starts typing
         setState(() => _isTyping = true);
         _chatService.setTypingStatus(widget.receiverId, true);
-      } else if (_messageController.text.isEmpty && _isTyping) { // when user deletes all text or sends the message
+      } else if (_messageController.text.isEmpty && _isTyping) { // User deletes text or sends message
         setState(() => _isTyping = false);
         _chatService.setTypingStatus(widget.receiverId, false);
       }
     });
   }
 
+  // Sends a standard text message
   void _sendMessage() async {
-    if (_messageController.text.isNotEmpty) { // only send if there's text in the input
+    if (_messageController.text.isNotEmpty) { // Only send if there's text in the input
       await _chatService.sendMessage(
         widget.receiverId,
         _messageController.text,
@@ -81,6 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // Initializes the editing mode for a specific message
   void _startEditingMessage(
     String messageId,
     String messageText,
@@ -107,6 +111,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // Cancels the current message editing state
   void _cancelEditing() {
     _chatService.setTypingStatus(widget.receiverId, false);
     if (_isTyping) setState(() => _isTyping = false);
@@ -120,7 +125,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _editingMessageController.clear();
   }
 
-  // saving the edited message to Firestore
+  // Saves the edited message text back to Firestore
   Future<void> _saveEditedMessage() async {
     if (_editingMessageId == null || _editingMessageController.text.isEmpty) {
       return;
@@ -135,7 +140,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _cancelEditing();
   }
 
-  // marking the messages as read when they become visible in the chat
+  // Marks all currently loaded incoming messages as read
   void _markVisibleMessagesAsRead(QuerySnapshot snapshot) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -151,7 +156,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  // function to handle media selection (image, video, audio) and send it as a message after converting to Base64 string
+  // Handles selection of media files (image, video, audio) and uploads them as Base64 strings
   Future<void> _handleMediaSelection(String type) async {
     try {
       File? file;
@@ -168,13 +173,12 @@ class _ChatScreenState extends State<ChatScreen> {
         XFile? pickedFile;
 
         if (type == 'image') {
-          // restricting the image size to max 800x800 and quality to 70% to avoid very long Base64 strings that can cause Firestore issues
+          // Restricting image dimensions and quality to avoid large Base64 payload issues in Firestore
           pickedFile = await picker.pickImage(
             source: ImageSource.gallery,
             maxWidth: 800, 
             maxHeight: 800, 
-            imageQuality:
-                70, // packs the image to 70%
+            imageQuality: 70, // Compresses image to 70% quality
           );
         } else if (type == 'video') {
           pickedFile = await picker.pickVideo(source: ImageSource.gallery);
@@ -185,8 +189,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
 
-      // after a file is picked (doesn't matter if it's image, video or audio), we send it using the same method in ChatService, 
-      // which converts it to Base64 and saves to Firestore
+      // Automatically triggers media processing, Base64 conversion, and sends to Firestore
       if (file != null) {
         await _chatService.sendMediaMessage(
           widget.receiverId,
@@ -209,7 +212,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // confirmation dialog before deleting a message
+  // Triggers a confirmation dialog box before deleting a selected message
   void _confirmDeleteMessage(String messageId) async {
     final bool? confirmed = await ChatDialogs.showDeleteConfirmation(context);
 
@@ -234,7 +237,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // bottom sheet with options to edit or delete a message
+  // Opens up the action bottom sheet menu containing editing and deleting configurations
   void _showOptionsBottomSheet(
     BuildContext context,
     String messageId,
@@ -252,239 +255,247 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _darkBgColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        titleSpacing: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.receiverId)
-              .snapshots(),
-          builder: (context, snapshot) {
-            String displayName = widget.receiverEmail;
-            String? base64Image;
-            String userLetter = widget.receiverEmail
-                .substring(0, 1)
-                .toUpperCase();
-
-            if (snapshot.hasData && snapshot.data!.exists) {
-              final userData = snapshot.data!.data() as Map<String, dynamic>?;
-              if (userData?['username'] != null &&
-                  userData!['username'].toString().isNotEmpty) {
-                displayName = userData['username'];
-                userLetter = displayName.substring(0, 1).toUpperCase();
-              }
-              base64Image = userData?['profilePicture'];
-            }
-
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => UserProfileScreen(
-                      userId: widget.receiverId,
-                      userEmail: widget.receiverEmail,
-                      isAlreadyFriend: true,
-                    ),
-                  ),
-                );
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: _myMessageColor.withOpacity(0.2),
-                    child: base64Image != null && base64Image.isNotEmpty
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: Image.memory(
-                              base64Decode(base64Image),
-                              width: 36,
-                              height: 36,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Text(
-                            userLetter,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      displayName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+  // Toggles secret end-to-end encryption mode state and pushes a responsive UI notification SnackBar
+  void _handleSecretChatToggle() {
+    setState(() => _isSecretChat = !_isSecretChat);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: _isSecretChat ? _secretMessageColor : _otherMessageColor,
+        content: Text(
+          _isSecretChat
+              ? 'Secret Chat Enabled (End-to-End Encrypted)'
+              : 'Normal Chat Enabled',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        duration: const Duration(milliseconds: 300),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).size.height * 0.12,
+          left: 16,
+          right: 16,
         ),
       ),
-      body: Column(
-        children: [
-          Container(height: 1, color: Colors.white.withOpacity(0.05)),
+    );
+  }
 
-          // list of messages
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _chatService.getMessages(
-                _auth.currentUser!.uid,
-                widget.receiverId,
-              ),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(
-                    child: Text(
-                      'Error loading messages.',
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                  );
-                }
+  // Builds a responsive dynamic AppBar containing receiver credentials, profile handling, and actions
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      titleSpacing: 0,
+      iconTheme: const IconThemeData(color: Colors.white),
+      title: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.receiverId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          String displayName = widget.receiverEmail;
+          String? base64Image;
+          String userLetter = widget.receiverEmail.substring(0, 1).toUpperCase();
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: _myMessageColor),
-                  );
-                }
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final userData = snapshot.data!.data() as Map<String, dynamic>?;
+            if (userData?['username'] != null &&
+                userData!['username'].toString().isNotEmpty) {
+              displayName = userData['username'];
+              userLetter = displayName.substring(0, 1).toUpperCase();
+            }
+            base64Image = userData?['profilePicture'];
+          }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No messages yet',
-                      style: TextStyle(color: Colors.white38, fontSize: 14),
-                    ),
-                  );
-                }
-
-                _markVisibleMessagesAsRead(snapshot.data!);
-                _chatService.clearUnreadCount(widget.receiverId);
-
-                final docs = snapshot.data!.docs;
-                return ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    Map<String, dynamic> data =
-                        doc.data() as Map<String, dynamic>;
-
-                    String senderId = data['senderId'] ?? '';
-                    bool isMe = senderId == _auth.currentUser!.uid;
-                    String messageText = data['message'] ?? '';
-                    bool msgIsSecret = data['isSecret'] ?? false;
-
-                    // Decrypting (only a secret message)
-                    if (msgIsSecret && messageText.isNotEmpty) {
-                      try {
-                        messageText = EncryptionService.decryptText(
-                          messageText,
-                        );
-                      } catch (e) {
-                        messageText = "Failed to decrypt message";
-                      }
-                    }
-
-                    return MessageBubble(
-                      data: data,
-                      messageId: doc.id,
-                      messageText: messageText,
-                      isMe: isMe,
-                      receiverId: widget.receiverId,
-                      receiverEmail: widget.receiverEmail,
-                      formattedTime: DateFormatter.formatTimestamp(data['timestamp']),
-                      isEditingThisMessage:
-                          isMe &&
-                          _isEditingMessage &&
-                          _editingMessageId == doc.id,
-                      onStartEditing: _startEditingMessage,
-                      onShowOptions: _showOptionsBottomSheet,
-                      onCancelEditing: _cancelEditing,
-                      onSaveEditedMessage: _saveEditedMessage,
-                      editingController: _editingMessageController,
-                      editingFocusNode: _editingMessageFocusNode,
-                      myMessageColor: _myMessageColor,
-                      otherMessageColor: _otherMessageColor,
-                      secretMessageColor: _secretMessageColor,
-                      darkBgColor: _darkBgColor,
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-
-          // Typing indicator
-          StreamBuilder<bool>(
-            stream: _chatService.getTypingStatusStream(
-              _chatRoomId,
-              widget.receiverId,
-            ),
-            builder: (context, snapshot) => TypingIndicator.build(
-              receiverEmail: widget.receiverEmail,
-              isTyping: snapshot.data == true,
-            ),
-          ),
-
-          // chat input area with send button, secret chat toggle, and media attachment options
-          ChatInputArea(
-            controller: _messageController,
-            isSecretChat: _isSecretChat,
-            onToggleSecret: () {
-              setState(() => _isSecretChat = !_isSecretChat);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: _isSecretChat
-                      ? _secretMessageColor
-                      : _otherMessageColor,
-                  content: Text(
-                    _isSecretChat
-                        ? 'Secret Chat Enabled (End-to-End Encrypted)'
-                        : 'Normal Chat Enabled',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  duration: const Duration(milliseconds: 300),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  margin: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).size.height * 0.12,
-                    left: 16,
-                    right: 16,
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserProfileScreen(
+                    userId: widget.receiverId,
+                    userEmail: widget.receiverEmail,
+                    isAlreadyFriend: true,
                   ),
                 ),
               );
             },
-            onSendMessage: _sendMessage,
-            onMediaSelected: (type) => _handleMediaSelection(
-              type,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: _myMessageColor.withOpacity(0.2),
+                  child: base64Image != null && base64Image.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Image.memory(
+                            base64Decode(base64Image),
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Text(
+                          userLetter,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Sub-widget: Assembles the interactive ListView and handles real-time streams
+  Widget _buildMessageList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _chatService.getMessages(
+        _auth.currentUser!.uid,
+        widget.receiverId,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(
+            child: Text(
+              'Error loading messages.',
+              style: TextStyle(color: Colors.white54),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: _myMessageColor),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Text(
+              'No messages yet',
+              style: TextStyle(color: Colors.white38, fontSize: 14),
+            ),
+          );
+        }
+
+        // Handle operational unread configurations safely inside data callbacks
+        _markVisibleMessagesAsRead(snapshot.data!);
+        _chatService.clearUnreadCount(widget.receiverId);
+
+        final docs = snapshot.data!.docs;
+        return ListView.builder(
+          reverse: true,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
+          ),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+            String senderId = data['senderId'] ?? '';
+            bool isMe = senderId == _auth.currentUser!.uid;
+            String messageText = data['message'] ?? '';
+            bool msgIsSecret = data['isSecret'] ?? false;
+
+            // Handle decryption routine locally if End-to-End Encryption flag is validated
+            if (msgIsSecret && messageText.isNotEmpty) {
+              try {
+                messageText = EncryptionService.decryptText(messageText);
+              } catch (e) {
+                messageText = "Failed to decrypt message";
+              }
+            }
+
+            return MessageBubble(
+              data: data,
+              messageId: doc.id,
+              messageText: messageText,
+              isMe: isMe,
+              receiverId: widget.receiverId,
+              receiverEmail: widget.receiverEmail,
+              formattedTime: DateFormatter.formatTimestamp(data['timestamp']),
+              isEditingThisMessage:
+                  isMe &&
+                  _isEditingMessage &&
+                  _editingMessageId == doc.id,
+              onStartEditing: _startEditingMessage,
+              onShowOptions: _showOptionsBottomSheet,
+              onCancelEditing: _cancelEditing,
+              onSaveEditedMessage: _saveEditedMessage,
+              editingController: _editingMessageController,
+              editingFocusNode: _editingMessageFocusNode,
+              myMessageColor: _myMessageColor,
+              otherMessageColor: _otherMessageColor,
+              secretMessageColor: _secretMessageColor,
+              darkBgColor: _darkBgColor,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Sub-widget: Decoupled typing indicator listening directly to targeted snapshot streams
+  Widget _buildTypingIndicator() {
+    return StreamBuilder<bool>(
+      stream: _chatService.getTypingStatusStream(
+        _chatRoomId,
+        widget.receiverId,
+      ),
+      builder: (context, snapshot) => TypingIndicator.build(
+        receiverEmail: widget.receiverEmail,
+        isTyping: snapshot.data == true,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _darkBgColor,
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          Container(height: 1, color: Colors.white.withOpacity(0.05)),
+
+          // Live Chat Conversation Feed
+          Expanded(child: _buildMessageList()),
+
+          // Typing Notification State Handler
+          _buildTypingIndicator(),
+
+          // User Input, Action Panels and Attachments Management Engine
+          ChatInputArea(
+            controller: _messageController,
+            isSecretChat: _isSecretChat,
+            onToggleSecret: _handleSecretChatToggle,
+            onSendMessage: _sendMessage,
+            onMediaSelected: _handleMediaSelection,
             myMessageColor: _myMessageColor,
             otherMessageColor: _otherMessageColor,
             secretMessageColor: _secretMessageColor,

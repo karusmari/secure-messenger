@@ -29,6 +29,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
   }
 
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  // Fetches the authenticated user's remote configuration records from Firestore
   void _loadUserData() async {
     final String uid = _auth.currentUser!.uid;
     final doc = await _db.collection('users').doc(uid).get();
@@ -45,32 +52,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Picking an image
+  // Opens the system gallery to pick, compress, and update the user profile picture
   Future<void> _pickAndUploadImage() async {
     final ImagePicker picker = ImagePicker();
     
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 30, 
+      imageQuality: 30, // Compress image quality to maintain light Firestore payloads
     );
 
-    if (image != null) {
-      setState(() => _isLoading = true);
-      try {
-        await _profileService.uploadAndChangeProfilePicture(File(image.path));
-        _loadUserData(); 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile picture updated!'), backgroundColor: Colors.green),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-        setState(() => _isLoading = false);
-      }
+    if (image == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _profileService.uploadAndChangeProfilePicture(File(image.path));
+      _loadUserData(); // Reload state context to fetch the fresh Base64 string
+      
+      if (!context.mounted) return;
+      _showSnackBar(context, 'Profile picture updated successfully!', isError: false);
+    } catch (e) {
+      if (!context.mounted) return;
+      _showSnackBar(context, 'Error updating image: $e', isError: true);
+      setState(() => _isLoading = false);
     }
   }
 
+  // Commits modifications made to the user profile text fields down to the database
   void _saveProfile() async {
     setState(() => _isLoading = true);
     try {
@@ -78,15 +85,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _usernameController.text.trim(),
         _profilePicBase64,
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username updated successfully!'), backgroundColor: Colors.green),
-      );
+      if (!context.mounted) return;
+      _showSnackBar(context, 'Username updated successfully!', isError: false);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      if (!context.mounted) return;
+      _showSnackBar(context, 'Error updating profile: $e', isError: true);
     }
     setState(() => _isLoading = false);
+  }
+
+  // UI DIALOG TRIGGERS
+
+  // Displays an alert window generating a unique user identification QR key
+  void _showQrCodeDialog(BuildContext context) {
+    final String qrData = _auth.currentUser?.email ?? "test_user_emulator@test.com";
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text(
+          'My QR Code', 
+          textAlign: TextAlign.center, 
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Let a friend scan this code to start a secure chat with you.', 
+              textAlign: TextAlign.center, 
+              style: TextStyle(color: Colors.white60, fontSize: 13)
+            ),
+            const SizedBox(height: 20),
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(10),
+              width: 220, 
+              height: 220, 
+              child: QrImageView(
+                data: qrData,
+                version: QrVersions.auto,
+                size: 200.0,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Colors.black,
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Colors.black,
+                ),
+                errorStateBuilder: (cxt, err) => Center(
+                  child: Text(
+                    "QR render error: $err",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSnackBar(BuildContext context, String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message), 
+        backgroundColor: isError ? Colors.red : Colors.green
+      ),
+    );
   }
 
   @override
@@ -103,100 +179,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // profile picture 
-                    GestureDetector(
-                      onTap: _pickAndUploadImage,
-                      child: Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          CircleAvatar(
-                            radius: 60,
-                            backgroundColor: Colors.grey[800],
-                            // in case the user has a profile picture, we decode it from base64 and display it, otherwise we show a default icon
-                            backgroundImage: _profilePicBase64.isNotEmpty
-                                ? MemoryImage(base64Decode(_profilePicBase64))
-                                : null, 
-                            child: _profilePicBase64.isEmpty // otherwise we show the default icon
-                                ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                                : null,
-                          ),
-                          const CircleAvatar(
-                            radius: 18,
-                            backgroundColor: Colors.blue,
-                            child: Icon(Icons.camera_alt, size: 16, color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
+                    // Avatar Layout with camera overlay trigger
+                    _buildAvatarHeader(),
+                    
                     const SizedBox(height: 15),
+                    
                     Text(
                       _auth.currentUser!.email ?? "",
                       style: TextStyle(color: Colors.grey[500], fontSize: 14),
                     ),
+                    
                     const SizedBox(height: 10),
 
                     TextButton.icon(
-                      onPressed: () {
-                        final String qrData = _auth.currentUser?.email ?? "test_user_emulator@test.com";
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            backgroundColor: Colors.grey[900],
-                            title: const Text('My QR Code', textAlign: TextAlign.center, style: TextStyle(color: Colors.white)),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('Let a friend scan this code to start a secure chat with you.', 
-                                  textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
-                                const SizedBox(height: 20),
-                                // Generating a QR code from the user's email
-                                Container(
-                                  color: Colors.white,
-                                  padding: const EdgeInsets.all(10),
-                                  width: 220, 
-                                  height: 220, 
-                                  child: QrImageView(
-                                    data: qrData,
-                                    version: QrVersions.auto,
-                                    size: 200.0,
-                                    // Creating black and white QR code so the emulator can create it easily
-                                    eyeStyle: const QrEyeStyle(
-                                      eyeShape: QrEyeShape.square,
-                                      color: Colors.black,
-                                    ),
-                                    dataModuleStyle: const QrDataModuleStyle(
-                                      dataModuleShape: QrDataModuleShape.square,
-                                      color: Colors.black,
-                                    ),
-                                    errorStateBuilder: (cxt, err) {
-                                      return Center(
-                                        child: Text(
-                                          "QR render error: $err",
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(color: Colors.red, fontSize: 12),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Close', style: TextStyle(color: Colors.blue)),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                      onPressed: () => _showQrCodeDialog(context),
                       icon: const Icon(Icons.qr_code, color: Colors.blue),
                       label: const Text('Show My QR Code', style: TextStyle(color: Colors.blue)),
                     ),
 
                     const SizedBox(height: 20),
 
-                    // Username input field
+                    // Username Input Field
                     TextField(
                       controller: _usernameController,
                       decoration: InputDecoration(
@@ -210,9 +213,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                     ),
+                    
                     const SizedBox(height: 24),
 
-                    // Save for the profile changes
+                    // Execution CTA Save Action Button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -234,9 +238,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    super.dispose();
+  // SUB-WIDGET BUILDERS
+
+  Widget _buildAvatarHeader() {
+    return GestureDetector(
+      onTap: _pickAndUploadImage,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          CircleAvatar(
+            radius: 60,
+            backgroundColor: Colors.grey[800],
+            backgroundImage: _profilePicBase64.isNotEmpty
+                ? MemoryImage(base64Decode(_profilePicBase64))
+                : null, 
+            child: _profilePicBase64.isEmpty 
+                ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                : null,
+          ),
+          const CircleAvatar(
+            radius: 18,
+            backgroundColor: Colors.blue,
+            child: Icon(Icons.camera_alt, size: 16, color: Colors.white),
+          ),
+        ],
+      ),
+    );
   }
 }
