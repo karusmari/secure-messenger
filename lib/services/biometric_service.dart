@@ -7,20 +7,10 @@ class BiometricService {
   final LocalAuthentication _auth = LocalAuthentication();
 
   // check if device supports biometrics and if any biometric method is enrolled
-  Future<bool> isBiometricAvailable() async {
+    Future<bool> isBiometricAvailable() async {
     try {
-      final bool isSupported = await _auth.isDeviceSupported();
-      final List<BiometricType> availableBiometrics = await _auth
-          .getAvailableBiometrics();
-
-      if (kDebugMode) {
-        debugPrint('Biometric support: $isSupported');
-        debugPrint('Available biometrics: $availableBiometrics');
-      }
-
-      return isSupported;
+      return await _auth.isDeviceSupported();
     } catch (e) {
-      debugPrint('Biometric availability check failed: $e');
       return false;
     }
   }
@@ -30,10 +20,8 @@ class BiometricService {
     try {
       return await _auth.authenticate(
         localizedReason: 'Please authenticate yourself to access the messages',
-        persistAcrossBackgrounding:
-            true, // keeps the authentication active even if the app goes to the background (Android)
-        biometricOnly:
-            true, // only allow biometric authentication, no PIN/pattern fallback
+        persistAcrossBackgrounding: true, // keeps the authentication active even if the app goes to the background (Android)
+        biometricOnly: true, // only allow biometric authentication, no PIN/pattern fallback
         authMessages: const [
           AndroidAuthMessages(
             signInTitle: 'Biometric Authentication Required',
